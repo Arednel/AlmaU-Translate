@@ -40,8 +40,8 @@
     <br>
     <a href="/">← На главную</a>
 
-    <p>version 0.0.1 / 2024.01.19</p>
-    <p>Project Start</p>
+    <p>version 0.0.2 / 2024.01.19</p>
+    <p>Tesseract OCR</p>
 </body>
 
 </html>

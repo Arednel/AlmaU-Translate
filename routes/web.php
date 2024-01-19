@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\TesseractController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -21,3 +22,5 @@ Route::view('/index', 'Index');
 //Info page 
 Route::view('/Info', 'Info');
 Route::view('/info', 'Info');
+
+Route::get('Tesseract', [TesseractController::class, 'imageProcess']);
