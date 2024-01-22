@@ -2,18 +2,33 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
+use Symfony\Component\Process\Process;
+use Symfony\Component\Process\Exception\ProcessFailedException;
 
-use thiagoalessio\TesseractOCR\TesseractOCR;
+use Illuminate\Support\Facades\File;
 
 class TesseractController extends Controller
 {
     public function imageProcess()
     {
-        $imagePath = public_path();
+        // Run pytesseract
+        $path = base_path() . "\python\Tesseract.py ";
+        $process = new Process(["py", $path]);
+        $process->run();
 
-        echo (new TesseractOCR($imagePath . '/Images/1.png'))
-            ->lang('rus', 'eng')
-            ->run();
+        // Show any errors
+        if (!$process->isSuccessful()) {
+            throw new ProcessFailedException($process);
+        }
+
+        // Get output from file
+        $filePath = base_path('python\output.json');
+        $fileContents = File::get($filePath);
+        // Delete file
+        File::delete($filePath);
+
+        $dataArray = json_decode($fileContents, true);
+
+        dd($dataArray);
     }
 }
