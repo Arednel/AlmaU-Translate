@@ -5,9 +5,14 @@ import pytesseract
 from pytesseract import Output
 
 # Get current directory (Project/python)
-CurrentDir = os.path.dirname( __file__ )
+currentDir = os.getcwd()
 
-img = cv2.imread(CurrentDir +'\\1.png')
+# Get the parent directory (one level up)
+parentDir = os.path.abspath(os.path.join(currentDir, os.pardir))
+
+storageDir = parentDir + "\\storage\\app\\"
+
+img = cv2.imread(storageDir +"images\\videoImage.jpg")
 
 # Get output from tesseract as dictionary
 dictionary = pytesseract.image_to_data(img, lang="rus+eng", output_type=Output.DICT)
@@ -16,5 +21,5 @@ dictionary = pytesseract.image_to_data(img, lang="rus+eng", output_type=Output.D
 json_output = json.dumps(dictionary, ensure_ascii=False, indent=2) 
 
 # Explicitly encode to UTF-8 before printing
-with open(CurrentDir + '\\output.json', "w", encoding="utf-8") as file:
+with open(storageDir + "\\output\\output.json", "w", encoding="utf-8") as file:
     file.write(json_output)

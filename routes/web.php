@@ -23,4 +23,4 @@ Route::view('/index', 'Index');
 Route::view('/Info', 'Info');
 Route::view('/info', 'Info');
 
-Route::get('Tesseract', [TesseractController::class, 'imageProcess']);
+Route::get('processVideo', [TesseractController::class, 'processVideo']);

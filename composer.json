@@ -10,6 +10,7 @@
         "laravel/framework": "^10.10",
         "laravel/sanctum": "^3.3",
         "laravel/tinker": "^2.8",
+        "pbmedia/laravel-ffmpeg": "^8.4",
         "symfony/process": "^6.4"
     },
     "require-dev": {
