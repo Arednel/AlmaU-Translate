@@ -14,10 +14,9 @@ class TesseractController extends Controller
 {
     public function processVideo()
     {
-        // Fix later
+        // Kinda fixed
         $ffprobe = FFProbe::create([
-            "ffmpeg.binaries"  => "C:/Program Files/ffmpeg/bin/ffmpeg.exe",
-            "ffprobe.binaries" => "C:/Program Files/ffmpeg/bin/ffprobe.exe"
+            "ffprobe.binaries" => env('FFPROBE_BINARIES')
         ]);
 
         $videoName = "1.mkv";
@@ -44,6 +43,7 @@ class TesseractController extends Controller
 
             dd($dataArray);
         }
+        return $videoDuration;
     }
 
     private function imageProcess()

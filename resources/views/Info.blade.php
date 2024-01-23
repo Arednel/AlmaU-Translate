@@ -40,8 +40,8 @@
     <br>
     <a href="/">← На главную</a>
 
-    <p>version 0.1.1 / 2024.01.21</p>
-    <p>FFmpeg image process</p>
+    <p>version 0.1.1.1 / 2024.01.22</p>
+    <p>FFprobe fix</p>
 </body>
 
 </html>
