@@ -41,7 +41,10 @@ class TesseractController extends Controller
             // Get data from image(text, location, etc.)
             $dataArray = $this->imageProcess();
 
-            dd($dataArray);
+            // Get text as blocks
+            $textBlocks = $this->getTextBlocks($dataArray);
+
+            dd($dataArray, $textBlocks);
         }
         return $videoDuration;
     }
@@ -68,5 +71,28 @@ class TesseractController extends Controller
         $dataArray = json_decode($fileContents, true);
 
         return $dataArray;
+    }
+
+    private function getTextBlocks($dataArray)
+    {
+        $textBlocks = [];
+        $previousBlockNum = 0;
+        // Get text as blocks
+        foreach ($dataArray["block_num"] as $key => $value) {
+            // If in this block exists any text
+            if ($dataArray["text"][$key] != "") {
+                // Check if it is new block, then set (first) or add to (second) value
+                if (array_key_exists($previousBlockNum, $textBlocks)) {
+                    $textBlocks[$previousBlockNum] .= " " . $dataArray["text"][$key];
+                } else {
+                    $textBlocks[$previousBlockNum] = $dataArray["text"][$key];
+                }
+            }
+
+            // Set block value
+            $previousBlockNum = $value;
+        }
+
+        return $textBlocks;
     }
 }

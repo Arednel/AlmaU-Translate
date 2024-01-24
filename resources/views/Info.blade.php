@@ -40,8 +40,8 @@
     <br>
     <a href="/">← На главную</a>
 
-    <p>version 0.1.1.1 / 2024.01.22</p>
-    <p>FFprobe fix</p>
+    <p>version 0.1.2 / 2024.01.23</p>
+    <p>Text group</p>
 </body>
 
 </html>
