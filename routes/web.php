@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\TesseractController;
+use App\Http\Controllers\videoController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -23,4 +23,4 @@ Route::view('/index', 'Index');
 Route::view('/Info', 'Info');
 Route::view('/info', 'Info');
 
-Route::get('processVideo', [TesseractController::class, 'processVideo']);
+Route::get('processVideo', [VideoController::class, 'processVideo']);

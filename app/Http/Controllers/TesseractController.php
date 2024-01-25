@@ -7,53 +7,13 @@ use Illuminate\Support\Facades\File;
 use Symfony\Component\Process\Process;
 use Symfony\Component\Process\Exception\ProcessFailedException;
 
-use ProtoneMedia\LaravelFFMpeg\FFMpeg\FFProbe;
-use ProtoneMedia\LaravelFFMpeg\Support\FFMpeg;
-
 class TesseractController extends Controller
 {
-    public function processVideo()
-    {
-        // Kinda fixed
-        $ffprobe = FFProbe::create([
-            "ffprobe.binaries" => env('FFPROBE_BINARIES')
-        ]);
-
-        $videoName = "1.mkv";
-        $videoPath = storage_path("/app/videos/"  . $videoName);
-
-        // Get video duration
-        $videoDuration = $ffprobe
-            ->format($videoPath) // extracts file informations
-            ->get('duration');
-        // To int
-        $videoDuration = intval($videoDuration);
-
-        // For each second take screenshot and process it via Tesseract
-        for ($i = 1; $i < $videoDuration; $i++) {
-            FFMpeg::fromDisk("local")
-                ->open("videos/" . $videoName)
-                ->getFrameFromSeconds($i)
-                ->export()
-                ->toDisk("local")
-                ->save("images/videoImage.jpg");
-
-            // Get data from image(text, location, etc.)
-            $dataArray = $this->imageProcess();
-
-            // Get text as blocks
-            $textBlocks = $this->getTextBlocks($dataArray);
-
-            dd($dataArray, $textBlocks);
-        }
-        return $videoDuration;
-    }
-
-    private function imageProcess()
+    public static function getTextFromImage()
     {
         // Run pytesseract
-        $path = base_path("python/Tesseract.py");
-        $process = new Process(["py", $path]);
+        $path = base_path('python/Tesseract.py');
+        $process = new Process(['py', $path]);
         $process->run();
 
         // Show any errors
@@ -62,35 +22,62 @@ class TesseractController extends Controller
         }
 
         // Get output from file
-        $filePath = base_path("storage/app/output/output.json");
+        $filePath = base_path('storage/app/output/output.json');
         $fileContents = File::get($filePath);
 
-        // Delete file
+        // Delete output.json file
         File::delete($filePath);
 
         $dataArray = json_decode($fileContents, true);
 
-        return $dataArray;
+        $textBlocks = TesseractController::getTextBlocks($dataArray);
+
+        return $textBlocks;
     }
 
-    private function getTextBlocks($dataArray)
+    private static function getTextBlocks($dataArray)
     {
         $textBlocks = [];
         $previousBlockNum = 0;
         // Get text as blocks
-        foreach ($dataArray["block_num"] as $key => $value) {
+        foreach ($dataArray['block_num'] as $key => $value) {
             // If in this block exists any text
-            if ($dataArray["text"][$key] != "") {
+            if ($dataArray['text'][$key] != '') {
                 // Check if it is new block, then set (first) or add to (second) value
                 if (array_key_exists($previousBlockNum, $textBlocks)) {
-                    $textBlocks[$previousBlockNum] .= " " . $dataArray["text"][$key];
+                    $textBlocks[$previousBlockNum]['text'] .= ' ' . $dataArray['text'][$key];
                 } else {
-                    $textBlocks[$previousBlockNum] = $dataArray["text"][$key];
+                    $textBlocks[$previousBlockNum]['text'] = $dataArray['text'][$key];
+
+                    // Block borders
+                    $textBlocks[$previousBlockNum]['leftStart'] = $dataArray['left'][$key];
+                    $textBlocks[$previousBlockNum]['topStart'] = $dataArray['top'][$key];
+                    $textBlocks[$previousBlockNum]['leftEnd'] = $dataArray['left'][$key] + $dataArray['width'][$key];
                 }
+                // Set box end from left
+                if (array_key_exists('leftEnd', $textBlocks[$previousBlockNum])) {
+                    // If current leftEnd is smaller then set it
+                    if ($textBlocks[$previousBlockNum]['leftEnd'] < $dataArray['left'][$key] + $dataArray['width'][$key]) {
+                        $textBlocks[$previousBlockNum]['leftEnd'] = $dataArray['left'][$key] + $dataArray['width'][$key];
+                    }
+                }
+
+                //Set box end from top
+                $textBlocks[$previousBlockNum]['topEnd'] = $dataArray['top'][$key] + $dataArray['height'][$key];
             }
 
             // Set block value
             $previousBlockNum = $value;
+        }
+
+        // Remove empty or english only arrays
+        foreach ($textBlocks as $key => $value) {
+            if (
+                $value['text'] == ' ' ||
+                preg_match('/^[a-zA-Z ]+$/', $value['text'])
+            ) {
+                unset($textBlocks[$key]);
+            }
         }
 
         return $textBlocks;

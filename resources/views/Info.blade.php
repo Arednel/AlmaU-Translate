@@ -40,8 +40,8 @@
     <br>
     <a href="/">← На главную</a>
 
-    <p>version 0.1.2 / 2024.01.23</p>
-    <p>Text group</p>
+    <p>version 0.2.0 / 2024.01.24</p>
+    <p>Text coordinates and rectangle</p>
 </body>
 
 </html>
