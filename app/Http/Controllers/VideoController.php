@@ -8,6 +8,8 @@ use ProtoneMedia\LaravelFFMpeg\Support\FFMpeg;
 use Intervention\Image\ImageManager;
 use Intervention\Image\Drivers\Gd\Driver;
 
+use GuzzleHttp\Client;
+
 class VideoController extends Controller
 {
     public function processVideo()
@@ -27,8 +29,9 @@ class VideoController extends Controller
         // To int
         $videoDuration = intval($videoDuration);
 
+        $translatedTextBlocks = [];
         // For each second take screenshot and process it via Tesseract
-        for ($i = 1; $i < $videoDuration; $i++) {
+        for ($i = 1; $i < 5; $i++) {
             FFMpeg::fromDisk('local')
                 ->open('videos/' . $videoName)
                 ->getFrameFromSeconds($i)
@@ -50,7 +53,13 @@ class VideoController extends Controller
                     $videoName,
                     $imageEdited,
                 );
+                // Translate text disabled for now
+                //                 $translatedText = $this->translateText($value['text']);
+                // 
+                //                 $textBlocks[$key]['translatedText'] = $translatedText;
             }
+
+            // TO DO Replace in video each second
 
             dd($textBlocks);
         }
@@ -97,5 +106,32 @@ class VideoController extends Controller
         $image->save(base_path('storage/app/' . $outputPath));
 
         return true;
+    }
+
+    private function translateText($textToTranslate)
+    {
+        // Replace 'YOUR_API_KEY' with your actual API key
+        $apiKey = env('GOOGLE_TRANSLATE_API_KEY');
+
+        // Target language code
+        $targetLanguage = 'kk';
+
+        // API endpoint URL
+        $apiUrl = "https://translation.googleapis.com/language/translate/v2?key={$apiKey}&q={$textToTranslate}&target={$targetLanguage}";
+
+        // Create a Guzzle HTTP client
+        $client = new Client();
+
+        // Make a GET request
+        $response = $client->get($apiUrl);
+
+        // Get the response body as a JSON object
+        $responseData = json_decode($response->getBody(), true);
+
+        // Access the translated text
+        $translatedText = $responseData['data']['translations'][0]['translatedText'];
+
+        // Output the translated text
+        return $translatedText;
     }
 }
