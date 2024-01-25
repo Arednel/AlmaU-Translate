@@ -9,11 +9,11 @@ use Symfony\Component\Process\Exception\ProcessFailedException;
 
 class TesseractController extends Controller
 {
-    public static function getTextFromImage()
+    public static function getTextFromImage($videoName)
     {
         // Run pytesseract
         $path = base_path('python/Tesseract.py');
-        $process = new Process(['py', $path]);
+        $process = new Process(['py', $path, $videoName]);
         $process->run();
 
         // Show any errors
@@ -39,6 +39,7 @@ class TesseractController extends Controller
     {
         $textBlocks = [];
         $previousBlockNum = 0;
+
         // Get text as blocks
         foreach ($dataArray['block_num'] as $key => $value) {
             // If in this block exists any text

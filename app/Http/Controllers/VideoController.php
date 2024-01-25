@@ -34,20 +34,21 @@ class VideoController extends Controller
                 ->getFrameFromSeconds($i)
                 ->export()
                 ->toDisk('local')
-                ->save('images/videoImage.jpg');
+                ->save('images/' . $videoName . '.jpg');
 
             // Get data from image(text, location, etc.)
-            $textBlocks = TesseractController::getTextFromImage();
+            $textBlocks = TesseractController::getTextFromImage($videoName);
 
             // Create rectangle over text with 4px margin Left and Top
-            $currentFilePath = 'images/videoImage.jpg';
+            $imageEdited = false;
             foreach ($textBlocks as $key => $value) {
-                $currentFilePath = $this->addRectangleToImage(
+                $imageEdited = $this->addRectangleToImage(
                     $value['leftStart'] - 4,
                     $value['topStart'] - 4,
                     $value['leftEnd'],
                     $value['topEnd'],
-                    $currentFilePath,
+                    $videoName,
+                    $imageEdited,
                 );
             }
 
@@ -57,10 +58,23 @@ class VideoController extends Controller
         dd('Complete');
     }
 
-    private function addRectangleToImage($leftStart, $topStart, $leftEnd, $topEnd, $inputPath = 'images/videoImage.jpg')
-    {
-        // Image path
-        $outputPath = 'images/videoImage2.jpg';
+    private function addRectangleToImage(
+        $leftStart,
+        $topStart,
+        $leftEnd,
+        $topEnd,
+        $videoName,
+        $imageEdited = false,
+    ) {
+        // If image already edited, then edit further
+        if (!$imageEdited) {
+            $inputPath = 'images/' . $videoName . '.jpg';
+        } else {
+            $inputPath = 'images/' . $videoName . '_Edited.jpg';
+        }
+
+        // Output path
+        $outputPath = 'images/' . $videoName . '_Edited.jpg';
 
         // width and height
         $width = $leftStart - $leftEnd;
@@ -82,6 +96,6 @@ class VideoController extends Controller
         // Save the modified image
         $image->save(base_path('storage/app/' . $outputPath));
 
-        return $outputPath;
+        return true;
     }
 }

@@ -40,8 +40,8 @@
     <br>
     <a href="/">← На главную</a>
 
-    <p>version 0.2.0 / 2024.01.24</p>
-    <p>Text coordinates and rectangle</p>
+    <p>version 0.2.1 / 2024.01.24</p>
+    <p>Image name input</p>
 </body>
 
 </html>

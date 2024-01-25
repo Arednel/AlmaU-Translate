@@ -1,9 +1,13 @@
 import os
+import sys
 import cv2
 import json
 import pytesseract
 from pytesseract import Output
 
+# Get video name
+videoName = sys.argv[1]
+ 
 # Get current directory (Project/python)
 currentDir = os.getcwd()
 
@@ -12,7 +16,7 @@ parentDir = os.path.abspath(os.path.join(currentDir, os.pardir))
 
 storageDir = parentDir + "\\storage\\app\\"
 
-img = cv2.imread(storageDir +"images\\videoImage.jpg")
+img = cv2.imread(storageDir + "images\\" + videoName + ".jpg")
 
 # Get output from tesseract as dictionary
 dictionary = pytesseract.image_to_data(img, lang="rus+eng", output_type=Output.DICT)
