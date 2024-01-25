@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Support\Facades\File;
+
 use ProtoneMedia\LaravelFFMpeg\FFMpeg\FFProbe;
 use ProtoneMedia\LaravelFFMpeg\Support\FFMpeg;
 
@@ -29,9 +31,8 @@ class VideoController extends Controller
         // To int
         $videoDuration = intval($videoDuration);
 
-        $translatedTextBlocks = [];
         // For each second take screenshot and process it via Tesseract
-        for ($i = 1; $i < 5; $i++) {
+        for ($i = 1; $i < $videoDuration; $i++) {
             FFMpeg::fromDisk('local')
                 ->open('videos/' . $videoName)
                 ->getFrameFromSeconds($i)
@@ -47,22 +48,27 @@ class VideoController extends Controller
             foreach ($textBlocks as $key => $value) {
                 $imageEdited = $this->addRectangleToImage(
                     $value['leftStart'] - 4,
-                    $value['topStart'] - 4,
+                    $value['topStart'] - 6,
                     $value['leftEnd'],
                     $value['topEnd'],
                     $videoName,
                     $imageEdited,
                 );
-                // Translate text disabled for now
-                //                 $translatedText = $this->translateText($value['text']);
+                // Translate text
+                // TO DO Disabled for now, translate only if text changed
+                // $translatedText = $this->translateText($value['text']);
                 // 
-                //                 $textBlocks[$key]['translatedText'] = $translatedText;
+                // $textBlocks[$key]['translatedText'] = $translatedText;
             }
 
-            // TO DO Replace in video each second
+            // TO DO Replace in video each frame with edited file
 
             dd($textBlocks);
         }
+
+        // Delete output.json file
+        $outputPath = base_path('storage/app/output/' . $videoName . '_output.json');
+        File::delete($outputPath);
 
         dd('Complete');
     }
@@ -95,10 +101,13 @@ class VideoController extends Controller
         // read image from file system
         $image = $manager->read(base_path('storage/app/' . $inputPath));
 
+        // Get background color with 5px margin
+        $intcolor = $image->pickColor($leftStart - 5, $topStart);
+
         // Draw rectangle
-        $image->drawRectangle($leftStart, $topStart, function ($rectangle) use ($width, $height) {
+        $image->drawRectangle($leftStart, $topStart, function ($rectangle) use ($width, $height, $intcolor) {
             $rectangle->size($width, $height); // width & height of rectangle
-            $rectangle->background('orange'); // background color of rectangle
+            $rectangle->background($intcolor); // background color of rectangle
             $rectangle->border('white', 0); // border color & size of rectangle
         });
 

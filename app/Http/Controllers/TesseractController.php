@@ -22,13 +22,10 @@ class TesseractController extends Controller
         }
 
         // Get output from file
-        $filePath = base_path('storage/app/output/output.json');
-        $fileContents = File::get($filePath);
+        $outputPath = base_path('storage/app/output/' . $videoName . '_output.json');
+        $outputContents = File::get($outputPath);
 
-        // Delete output.json file
-        File::delete($filePath);
-
-        $dataArray = json_decode($fileContents, true);
+        $dataArray = json_decode($outputContents, true);
 
         $textBlocks = TesseractController::getTextBlocks($dataArray);
 

@@ -25,5 +25,5 @@ dictionary = pytesseract.image_to_data(img, lang="rus+eng", output_type=Output.D
 json_output = json.dumps(dictionary, ensure_ascii=False, indent=2) 
 
 # Explicitly encode to UTF-8 before printing
-with open(storageDir + "\\output\\output.json", "w", encoding="utf-8") as file:
+with open(storageDir + "\\output\\" + videoName + "_output.json", "w", encoding="utf-8") as file:
     file.write(json_output)

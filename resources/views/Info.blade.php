@@ -40,8 +40,8 @@
     <br>
     <a href="/">← На главную</a>
 
-    <p>version 0.2.2 / 2024.01.24</p>
-    <p>Text translation</p>
+    <p>version 0.2.3 / 2024.01.24</p>
+    <p>Custom name for output and fixes</p>
 </body>
 
 </html>
