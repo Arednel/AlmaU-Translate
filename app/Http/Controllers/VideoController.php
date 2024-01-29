@@ -2,15 +2,15 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Support\Facades\File;
+use GuzzleHttp\Client;
 
-use ProtoneMedia\LaravelFFMpeg\FFMpeg\FFProbe;
-use ProtoneMedia\LaravelFFMpeg\Support\FFMpeg;
+use Illuminate\Support\Facades\File;
 
 use Intervention\Image\ImageManager;
 use Intervention\Image\Drivers\Gd\Driver;
 
-use GuzzleHttp\Client;
+use ProtoneMedia\LaravelFFMpeg\FFMpeg\FFProbe;
+use ProtoneMedia\LaravelFFMpeg\Support\FFMpeg;
 
 class VideoController extends Controller
 {
@@ -54,11 +54,14 @@ class VideoController extends Controller
                     $videoName,
                     $imageEdited,
                 );
+
                 // Translate text
                 // TO DO Disabled for now, translate only if text changed
                 // $translatedText = $this->translateText($value['text']);
-                // 
                 // $textBlocks[$key]['translatedText'] = $translatedText;
+                $textBlocks[$key]['translatedText'] = $value['text'];
+
+                $this->addTranslatedTextToImage($textBlocks[$key], $videoName);
             }
 
             // TO DO Replace in video each frame with edited file
@@ -92,8 +95,8 @@ class VideoController extends Controller
         $outputPath = 'images/' . $videoName . '_Edited.jpg';
 
         // width and height
-        $width = $leftStart - $leftEnd;
-        $height = $topStart - $topEnd;
+        $width = $leftEnd - $leftStart;
+        $height = $topEnd - $topStart;
 
         // Create imageManager
         $manager = new ImageManager(new Driver());
@@ -142,5 +145,88 @@ class VideoController extends Controller
 
         // Output the translated text
         return $translatedText;
+    }
+
+    private function addTranslatedTextToImage($textBlock, $videoName)
+    {
+        //Input path
+        $inputPath = 'images/' . $videoName . '_Edited.jpg';
+
+        // Output path
+        $outputPath = 'images/' . $videoName . '_Edited.jpg';
+
+        $lineWidth = $textBlock['leftEnd'] - $textBlock['leftStart'];
+        $lineHeight = $textBlock['topEnd'] - $textBlock['topStart'];
+
+        // Create imageManager
+        $manager = new ImageManager(new Driver());
+
+        // read image from file system
+        $image = $manager->read(base_path('storage/app/' . $inputPath));
+
+        // Translated text
+        $text = $textBlock['translatedText'];
+
+        // Calculate font size
+        $fontSize = 15;
+        $calculatedLineWidth = 0;
+        while ($calculatedLineWidth < $lineWidth) {
+            list($left,, $widthPX) = imageftbbox($fontSize, 0, public_path('fonts/Charis-SIL/CharisSILB.ttf'), $text);
+            $calculatedLineWidth = $widthPX / $textBlock['lineNum'];
+            $fontSize++;
+
+            // If font size is too big
+            if ($fontSize > 140) {
+                $fontSize = 15;
+                break;
+            }
+        }
+
+        $charactersAmount = strlen($text);
+
+        // Break lines after this amount of characters at any point
+        $split_length = floor($lineWidth / (floor($widthPX / $charactersAmount)) / 1.5) - 1;
+
+        mb_internal_encoding('UTF-8');
+        mb_regex_encoding('UTF-8');
+        $lines = preg_split('/(?<!^)(?!$)/u', $text);
+        $chunks = array_chunk($lines, $split_length);
+        $lines = array_map('implode', $chunks);
+
+        // Print characters
+        $lineHeightCalculated = round($lineHeight / $textBlock['lineNum']) + 4;
+        for ($i = 0; $i < count($lines); $i++) {
+
+            // Check current line is last line
+            if (array_key_exists($i + 1, $lines)) {
+                //add ' - ' character to the line end
+                $lastCharacter = $lines[$i][-1];
+                $firstCharacterNextLine = $lines[$i + 1][0];
+
+                // Check if word ended
+                if (
+                    !($lastCharacter === ' ' || $firstCharacterNextLine === ' ' || $lastCharacter === ')' || $firstCharacterNextLine === ')')
+                ) {
+                    $lines[$i] .= '-';
+                }
+            }
+
+            $offset = $textBlock['topStart'] + ($i * $lineHeightCalculated);
+            $image->text(
+                $lines[$i],
+                $textBlock['leftStart'],
+                $offset,
+                function ($font) use ($fontSize) {
+                    $font->file(
+                        public_path('fonts/Charis-SIL/CharisSILB.ttf')
+                    );
+                    $font->size($fontSize);
+                    $font->color('black');
+                }
+            );
+        }
+
+        // Save the modified image
+        $image->save(base_path('storage/app/' . $outputPath));
     }
 }

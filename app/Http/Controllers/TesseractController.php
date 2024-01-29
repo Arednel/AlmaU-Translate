@@ -62,6 +62,7 @@ class TesseractController extends Controller
 
                 //Set box end from top
                 $textBlocks[$previousBlockNum]['topEnd'] = $dataArray['top'][$key] + $dataArray['height'][$key];
+                $textBlocks[$previousBlockNum]['lineNum'] = $dataArray['line_num'][$key];
             }
 
             // Set block value
