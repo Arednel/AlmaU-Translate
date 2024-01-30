@@ -12,6 +12,8 @@ use Intervention\Image\Drivers\Gd\Driver;
 use ProtoneMedia\LaravelFFMpeg\FFMpeg\FFProbe;
 use ProtoneMedia\LaravelFFMpeg\Support\FFMpeg;
 
+use Symfony\Component\Process\Process;
+
 class VideoController extends Controller
 {
     public function processVideo()
@@ -21,27 +23,38 @@ class VideoController extends Controller
             'ffprobe.binaries' => env('FFPROBE_BINARIES')
         ]);
 
-        $videoName = '1.mkv';
-        $videoPath = storage_path('/app/videos/'  . $videoName);
+        $videoName = '1';
+        $videoFileExtension = 'mkv';
+        $videoID = 10;
+        $fullVideoName = "$videoName.$videoFileExtension";
+
+        $videoPathFull = storage_path("/app/videos/new/$videoID/$fullVideoName");
+        $videoPathShort = "videos/new/$videoID/$fullVideoName";
+
+        // Create folder
+        $this->createFolder($videoID);
+
+        // Divide video to one second parts
+        $this->divideVideoToChunks($videoPathFull, $videoID, $videoName);
 
         // Get video duration
         $videoDuration = $ffprobe
-            ->format($videoPath) // extracts file informations
+            ->format($videoPathFull) // extracts file informations
             ->get('duration');
-        // To int
-        $videoDuration = intval($videoDuration);
+        // Round up and convert to integer
+        $videoDuration = intval(ceil($videoDuration));
 
         // For each second take screenshot and process it via Tesseract
-        for ($i = 1; $i < $videoDuration; $i++) {
+        for ($i = 0; $i < $videoDuration; $i++) {
             FFMpeg::fromDisk('local')
-                ->open('videos/' . $videoName)
+                ->open($videoPathShort)
                 ->getFrameFromSeconds($i)
                 ->export()
                 ->toDisk('local')
-                ->save('images/' . $videoName . '.jpg');
+                ->save('/images/processing/' . $videoID . '/' . $videoName . '_' . $i . '.jpg');
 
             // Get data from image(text, location, etc.)
-            $textBlocks = TesseractController::getTextFromImage($videoName);
+            $textBlocks = TesseractController::getTextFromImage($videoID, $videoName, $i);
 
             // Create rectangle over text with 4px margin Left and Top
             $imageEdited = false;
@@ -51,7 +64,9 @@ class VideoController extends Controller
                     $value['topStart'] - 6,
                     $value['leftEnd'],
                     $value['topEnd'],
+                    $videoID,
                     $videoName,
+                    $i,
                     $imageEdited,
                 );
 
@@ -61,7 +76,7 @@ class VideoController extends Controller
                 // $textBlocks[$key]['translatedText'] = $translatedText;
                 $textBlocks[$key]['translatedText'] = $value['text'];
 
-                $this->addTranslatedTextToImage($textBlocks[$key], $videoName);
+                $this->addTranslatedTextToImage($textBlocks[$key], $videoID, $videoName, $i);
             }
 
             // TO DO Replace in video each frame with edited file
@@ -81,18 +96,20 @@ class VideoController extends Controller
         $topStart,
         $leftEnd,
         $topEnd,
+        $videoID,
         $videoName,
+        $imageNumber,
         $imageEdited = false,
     ) {
         // If image already edited, then edit further
         if (!$imageEdited) {
-            $inputPath = 'images/' . $videoName . '.jpg';
+            $inputPath = 'images/processing/' . $videoID . "/" . $videoName . "_" . $imageNumber . '.jpg';
         } else {
-            $inputPath = 'images/' . $videoName . '_Edited.jpg';
+            $inputPath = 'images/processing/' . $videoID . "/" . $videoName . "_" . $imageNumber . '_Edited.jpg';
         }
 
         // Output path
-        $outputPath = 'images/' . $videoName . '_Edited.jpg';
+        $outputPath = 'images/processing/' . $videoID . "/" . $videoName . "_" . $imageNumber . '_Edited.jpg';
 
         // width and height
         $width = $leftEnd - $leftStart;
@@ -147,13 +164,13 @@ class VideoController extends Controller
         return $translatedText;
     }
 
-    private function addTranslatedTextToImage($textBlock, $videoName)
+    private function addTranslatedTextToImage($textBlock, $videoID, $videoName, $imageNumber)
     {
         //Input path
-        $inputPath = 'images/' . $videoName . '_Edited.jpg';
+        $inputPath = 'images/processing/' . $videoID . "/" . $videoName . "_" . $imageNumber . '_Edited.jpg';
 
         // Output path
-        $outputPath = 'images/' . $videoName . '_Edited.jpg';
+        $outputPath = 'images/processing/' . $videoID . "/" . $videoName . "_" . $imageNumber . '_Edited.jpg';
 
         $lineWidth = $textBlock['leftEnd'] - $textBlock['leftStart'];
         $lineHeight = $textBlock['topEnd'] - $textBlock['topStart'];
@@ -228,5 +245,45 @@ class VideoController extends Controller
 
         // Save the modified image
         $image->save(base_path('storage/app/' . $outputPath));
+    }
+
+    private function createFolder($videoID)
+    {
+        // Create folder for processing purposes for video chunks
+        $folderPath = storage_path("/app/videos/processing/$videoID");
+        if (!file_exists($folderPath)) {
+            mkdir($folderPath, 0777, true);
+        }
+
+        // Create folder for processing purposes output
+        $folderPath = storage_path("/app/output/$videoID");
+        if (!file_exists($folderPath)) {
+            mkdir($folderPath, 0777, true);
+        }
+    }
+
+    private function divideVideoToChunks($videoPathFull, $videoID, $videoName)
+    {
+        $ffmpegCommand = [
+            env('FFMPEG_BINARIES'),
+            '-i', $videoPathFull,
+            '-c:v', 'libx264',
+            '-c:a', 'aac',
+            '-strict', 'experimental',
+            '-b:a', '192k',
+            '-force_key_frames', 'expr:gte(t,n_forced*1)',
+            '-f', 'segment',
+            '-segment_time', '1',
+            '-reset_timestamps', '1',
+            '-map', '0',
+            storage_path("/app/videos/processing/$videoID/"  . $videoName . '_part_%d.mkv'),
+        ];
+
+        $process = new Process($ffmpegCommand);
+        $process->setTimeout(null); //No timeout
+        $process->run();
+        if (!$process->isSuccessful()) {
+            throw new \RuntimeException($process->getErrorOutput());
+        }
     }
 }

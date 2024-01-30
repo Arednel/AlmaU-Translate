@@ -40,8 +40,8 @@
     <br>
     <a href="/">← На главную</a>
 
-    <p>version 0.3.0 / 2024.01.29</p>
-    <p>Image text change</p>
+    <p>version 0.4.0 / 2024.01.30</p>
+    <p>Divide video to chunks</p>
 </body>
 
 </html>

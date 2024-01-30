@@ -9,11 +9,11 @@ use Symfony\Component\Process\Exception\ProcessFailedException;
 
 class TesseractController extends Controller
 {
-    public static function getTextFromImage($videoName)
+    public static function getTextFromImage($videoID, $videoName, $imageNumber)
     {
         // Run pytesseract
         $path = base_path('python/Tesseract.py');
-        $process = new Process(['py', $path, $videoName]);
+        $process = new Process(['py', $path, $videoID, $videoName, $imageNumber]);
         $process->run();
 
         // Show any errors
@@ -22,7 +22,7 @@ class TesseractController extends Controller
         }
 
         // Get output from file
-        $outputPath = base_path('storage/app/output/' . $videoName . '_output.json');
+        $outputPath = base_path('storage/app/output/' . $videoID . "/" . $videoName . "_" . $imageNumber . '_output.json');
         $outputContents = File::get($outputPath);
 
         $dataArray = json_decode($outputContents, true);
