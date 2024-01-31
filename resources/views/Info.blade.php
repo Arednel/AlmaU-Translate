@@ -40,8 +40,8 @@
     <br>
     <a href="/">← На главную</a>
 
-    <p>version 0.5.0 / 2024.01.31</p>
-    <p>Translated video chunk output</p>
+    <p>version 0.5.0.1 / 2024.01.31</p>
+    <p>Cleanup and fixes</p>
 </body>
 
 </html>

@@ -69,11 +69,19 @@ class TesseractController extends Controller
             $previousBlockNum = $value;
         }
 
-        // Remove empty or english only arrays
+        $textBlocks = TesseractController::cleanUpTextBlocks($textBlocks);
+
+        return $textBlocks;
+    }
+
+    private static function cleanUpTextBlocks($textBlocks)
+    {
+        // Remove empty, english only and 1 or 2 character arrays
         foreach ($textBlocks as $key => $value) {
             if (
                 $value['text'] == ' ' ||
-                preg_match('/^[a-zA-Z ]+$/', $value['text'])
+                preg_match('/^[a-zA-Z ]+$/', $value['text']) ||
+                strlen($value['text']) < 3
             ) {
                 unset($textBlocks[$key]);
             }

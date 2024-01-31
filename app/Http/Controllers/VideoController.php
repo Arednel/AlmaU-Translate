@@ -35,7 +35,7 @@ class VideoController extends Controller
         $this->createFolder($videoID);
 
         // Divide video to one second parts
-        $this->divideVideoToChunks($videoPathFull, $videoID, $videoName);
+        // $this->divideVideoToChunks($videoPathFull, $videoID, $videoName);
 
         // Get video duration
         $videoDuration = $ffprobe
@@ -69,7 +69,7 @@ class VideoController extends Controller
                     $videoID,
                     $videoName,
                     $i,
-                    $imageEdited,
+                    $imageEdited
                 );
 
                 // Translate text
@@ -86,7 +86,6 @@ class VideoController extends Controller
                 $this->cropImage(
                     $value['leftStart'] - $margin,
                     $value['topStart'] - $lineHeightCalculated,
-                    $value['leftEnd'],
                     $value['topEnd'],
                     $maxWidth,
                     $videoID,
@@ -117,16 +116,8 @@ class VideoController extends Controller
         dd('Complete');
     }
 
-    private function addRectangleToImage(
-        $leftStart,
-        $topStart,
-        $leftEnd,
-        $topEnd,
-        $videoID,
-        $videoName,
-        $imageNumber,
-        $imageEdited = false,
-    ) {
+    private function addRectangleToImage($leftStart, $topStart, $leftEnd, $topEnd, $videoID, $videoName, $imageNumber, $imageEdited)
+    {
         // If image already edited, then edit further
         if (!$imageEdited) {
             $inputPath = 'images/processing/' . $videoID . "/" . $videoName . "_" . $imageNumber . '.jpg';
@@ -275,20 +266,11 @@ class VideoController extends Controller
             // Get the bounding box of the text
             list($left,, $widthPX2)  = imagettfbbox($fontSize, 0, $fontFile, $lines[$i]);
             // Calculate the width of the text
-            var_dump(
-                "widthPX2 - $widthPX2",
-                $lines[$i],
-                "calculatedLineWidth - $calculatedLineWidth"
-            );
             if ($maxWidth < $widthPX2) {
                 $maxWidth = round($widthPX2 / 1.22);
             }
-            // TO DO Max width is diffirent
         }
 
-        var_dump(
-            "maxWidth final - $maxWidth",
-        );
         // Save the modified image
         $image->save(base_path('storage/app/' . $outputPath));
 
@@ -340,16 +322,8 @@ class VideoController extends Controller
         }
     }
 
-    private function cropImage(
-        $leftStart,
-        $topStart,
-        $leftEnd,
-        $topEnd,
-        $width,
-        $videoID,
-        $videoName,
-        $imageNumber,
-    ) {
+    private function cropImage($leftStart, $topStart, $topEnd, $width, $videoID, $videoName, $imageNumber)
+    {
         $imagePath = storage_path('app/images/processing/' . $videoID . "/" . $videoName . "_" . $imageNumber . '_edited');
 
         // width and height
@@ -371,16 +345,9 @@ class VideoController extends Controller
         }
     }
 
-    private function placeImageOverlay(
-        $leftStart,
-        $topStart,
-        $videoID,
-        $videoName,
-        $videoFileExtension,
-        $imageNumber,
-        $iteration,
-    ) {
-        // If image already edited, then edit further
+    private function placeImageOverlay($leftStart, $topStart, $videoID, $videoName, $videoFileExtension, $imageNumber, $iteration)
+    {
+        // If video already edited, then edit further
         if ($iteration == 0) {
             $videoChunkInputPath = storage_path('app/videos/processing/' . $videoID . "/" . $videoName . "_part_" . $imageNumber . '.' . $videoFileExtension);
         } else {
