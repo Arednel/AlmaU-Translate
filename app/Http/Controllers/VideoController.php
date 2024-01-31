@@ -93,6 +93,14 @@ class VideoController extends Controller
                     $i
                 );
 
+                // TO DO NOW
+                $lineWidth = $textBlocks[$key]['leftEnd'] - $textBlocks[$key]['leftStart'];
+                $height = $value['topEnd'] - $value['topStart'];
+                $this->imageCreate($lineWidth, $height, $textBlocks[$key]);
+
+                $this->addTranslatedTextToImageTwo($textBlocks[$key], $margin, $videoID, $videoName, $i);
+                // TO DO NOW
+
                 $iteration = $this->placeImageOverlay(
                     $value['leftStart'] - $margin,
                     $value['topStart'] - $margin,
@@ -265,6 +273,7 @@ class VideoController extends Controller
             $fontFile = public_path('fonts/Charis-SIL/CharisSILB.ttf');
             // Get the bounding box of the text
             list($left,, $widthPX2)  = imagettfbbox($fontSize, 0, $fontFile, $lines[$i]);
+
             // Calculate the width of the text
             if ($maxWidth < $widthPX2) {
                 $maxWidth = round($widthPX2 / 1.22);
@@ -377,5 +386,109 @@ class VideoController extends Controller
 
         $iteration++;
         return $iteration;
+    }
+
+    private function imageCreate($width, $height, $textBlock)
+    {
+        $lineHeight = $textBlock['topEnd'] - $textBlock['topStart'];
+        $lineHeightCalculated = intval($lineHeight / $textBlock['lineNum']);
+
+        $height = $height + $lineHeightCalculated;
+        // Create a blank image
+        $image = imagecreatetruecolor($width, $height);
+
+        // Set a background color (optional)
+        $backgroundColor = imagecolorallocate($image, 255, 255, 255);
+        imagefill($image, 0, 0, $backgroundColor);
+
+        // Save the image to a file (optional)
+        $filename = public_path('output.png');
+        imagepng($image, $filename);
+    }
+
+    private function addTranslatedTextToImageTwo($textBlock, $margin, $videoID, $videoName, $imageNumber)
+    {
+        //Input path
+        $inputPath = 'images/processing/' . $videoID . "/" . $videoName . "_" . $imageNumber . '_edited.jpg';
+
+        // Output path
+        $outputPath = 'images/processing/' . $videoID . "/" . $videoName . "_" . $imageNumber . '_edited.jpg';
+
+        $lineWidth = $textBlock['leftEnd'] - $textBlock['leftStart'];
+        $lineHeight = $textBlock['topEnd'] - $textBlock['topStart'];
+
+        $fontFile = public_path('fonts/Charis-SIL/CharisSILB.ttf');
+
+        // Create imageManager
+        $manager = new ImageManager(new Driver());
+
+        // read image from file system
+        $image = $manager->read(public_path('output.png'));
+
+        // Translated text
+        $text = $textBlock['translatedText'];
+
+        // Calculate font size
+        $fontSize = $textBlock['fontSize'];
+
+        list($left,, $widthPX) = imageftbbox($fontSize, 0, public_path('fonts/Charis-SIL/CharisSILB.ttf'), $text);
+
+        $charactersAmount = strlen($text);
+
+        // Break lines after this amount of characters at any point
+        $split_length = floor($lineWidth / (floor($widthPX / $charactersAmount)) / 1.5) - 1;
+
+        mb_internal_encoding('UTF-8');
+        mb_regex_encoding('UTF-8');
+        $lines = preg_split('/(?<!^)(?!$)/u', $text);
+        $chunks = array_chunk($lines, $split_length);
+        $lines = array_map('implode', $chunks);
+
+        // Print characters
+        $lineHeightCalculated = intval($lineHeight / $textBlock['lineNum']);
+
+        for ($i = 0; $i < count($lines); $i++) {
+
+            $lines[$i] = $this->wordWrap($lines, $i);
+
+            $offset = ($i + 1) * $lineHeightCalculated;
+            $image->text(
+                $lines[$i],
+                3,
+                $offset,
+                function ($font) use ($fontSize, $fontFile) {
+                    $font->file($fontFile);
+                    $font->size($fontSize);
+                    $font->color('black');
+                }
+            );
+        }
+
+        // Save the modified image
+        $image->save(public_path('output_2.png'));
+
+        $outputArray = array(
+            'lineHeightCalculated' => $lineHeightCalculated,
+        );
+
+        return $outputArray;
+    }
+
+    private function wordWrap($lines, $i)
+    {
+        if (array_key_exists($i + 1, $lines)) {
+            //add ' - ' character to the line end
+            $lastCharacter = $lines[$i][-1];
+            $firstCharacterNextLine = $lines[$i + 1][0];
+
+            // Check if word ended
+            if (
+                !($lastCharacter === ' ' || $firstCharacterNextLine === ' ' || $lastCharacter === ')' || $firstCharacterNextLine === ')')
+            ) {
+                $lines[$i] .= '-';
+            }
+        }
+
+        return $lines[$i];
     }
 }

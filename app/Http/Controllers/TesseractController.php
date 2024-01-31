@@ -36,11 +36,15 @@ class TesseractController extends Controller
     {
         $textBlocks = [];
         $previousBlockNum = 0;
+        $previousLineNum = NULL;
 
         // Get text as blocks
         foreach ($dataArray['block_num'] as $key => $value) {
             // If in this block exists any text
-            if ($dataArray['text'][$key] != '') {
+            if (
+                $dataArray['text'][$key] != '' &&
+                $dataArray['text'][$key] != ' '
+            ) {
                 // Check if it is new block, then set (first) or add to (second) value
                 if (array_key_exists($previousBlockNum, $textBlocks)) {
                     $textBlocks[$previousBlockNum]['text'] .= ' ' . $dataArray['text'][$key];
@@ -52,6 +56,9 @@ class TesseractController extends Controller
                     $textBlocks[$previousBlockNum]['topStart'] = $dataArray['top'][$key];
                     $textBlocks[$previousBlockNum]['leftEnd'] = $dataArray['left'][$key] + $dataArray['width'][$key];
                 }
+
+
+
                 // Set box end from left
                 if (array_key_exists('leftEnd', $textBlocks[$previousBlockNum])) {
                     // If current leftEnd is smaller then set it
@@ -63,6 +70,12 @@ class TesseractController extends Controller
                 //Set box end from top
                 $textBlocks[$previousBlockNum]['topEnd'] = $dataArray['top'][$key] + $dataArray['height'][$key];
                 $textBlocks[$previousBlockNum]['lineNum'] = $dataArray['line_num'][$key];
+
+                // Check if it is new line, then calculate fontSize 
+                if ($dataArray['line_num'][$key] != $previousLineNum) {
+                    $textBlocks[$previousBlockNum]['fontSize'] = TesseractController::calculateFontSize($textBlocks[$previousBlockNum]);
+                }
+                $previousLineNum = $dataArray['line_num'][$key];
             }
 
             // Set block value
@@ -88,5 +101,31 @@ class TesseractController extends Controller
         }
 
         return $textBlocks;
+    }
+
+    private static function calculateFontSize($textBlock)
+    {
+        $lineWidth = $textBlock['leftEnd'] - $textBlock['leftStart'];
+
+        // Translated text
+        $text = $textBlock['text'];
+
+        // Calculate font size
+        $fontSize = 5;
+        $calculatedLineWidth = 0;
+        while ($calculatedLineWidth < $lineWidth) {
+            list($left,, $widthPX) = imageftbbox($fontSize, 0, public_path('fonts/Charis-SIL/CharisSILB.ttf'), $text);
+            $calculatedLineWidth = $widthPX / $textBlock['lineNum'];
+            $fontSize++;
+
+            // If font size is too big
+            if ($fontSize > 140) {
+                $fontSize = 15;
+                break;
+            }
+        }
+        $fontSize--;
+
+        return $fontSize;
     }
 }
