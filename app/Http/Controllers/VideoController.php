@@ -58,19 +58,8 @@ class VideoController extends Controller
             $textBlocks = TesseractController::getTextFromImage($videoID, $videoName, $i);
 
             // Create rectangle over text with 4px margin Left and Top
-            $imageEdited = false;
             $iteration = 0;
             foreach ($textBlocks as $key => $value) {
-                $imageEdited = $this->addRectangleToImage(
-                    $value['leftStart'] - $margin,
-                    $value['topStart'] - $margin,
-                    $value['leftEnd'] + $margin,
-                    $value['topEnd'] + $margin,
-                    $videoID,
-                    $videoName,
-                    $i,
-                    $imageEdited
-                );
 
                 // Translate text
                 // TO DO Disabled for now, translate only if text changed
@@ -78,28 +67,13 @@ class VideoController extends Controller
                 // $textBlocks[$key]['translatedText'] = $translatedText;
                 $textBlocks[$key]['translatedText'] = $value['text'];
 
-                $outputArray = $this->addTranslatedTextToImage($textBlocks[$key], $margin, $videoID, $videoName, $i);
-                $lineHeightCalculated = $outputArray['lineHeightCalculated'];
-                $maxWidth = $outputArray['maxWidth'];
-
-                // First, crop translated text
-                $this->cropImage(
-                    $value['leftStart'] - $margin,
-                    $value['topStart'] - $lineHeightCalculated,
-                    $value['topEnd'],
-                    $maxWidth,
-                    $videoID,
-                    $videoName,
-                    $i
-                );
-
-                // TO DO NOW
                 $lineWidth = $textBlocks[$key]['leftEnd'] - $textBlocks[$key]['leftStart'];
-                $height = $value['topEnd'] - $value['topStart'];
-                $this->imageCreate($lineWidth, $height, $textBlocks[$key]);
+                $lineHeight = $value['topEnd'] - $value['topStart'];
 
-                $this->addTranslatedTextToImageTwo($textBlocks[$key], $margin, $videoID, $videoName, $i);
-                // TO DO NOW
+                // Create blank image
+                $this->imageCreate($lineWidth, $lineHeight, $margin, $textBlocks[$key], $videoID, $videoName, $i);
+
+                $this->addTranslatedTextToImage($textBlocks[$key], $margin, $videoID, $videoName, $i);
 
                 $iteration = $this->placeImageOverlay(
                     $value['leftStart'] - $margin,
@@ -122,44 +96,6 @@ class VideoController extends Controller
         File::delete($outputPath);
 
         dd('Complete');
-    }
-
-    private function addRectangleToImage($leftStart, $topStart, $leftEnd, $topEnd, $videoID, $videoName, $imageNumber, $imageEdited)
-    {
-        // If image already edited, then edit further
-        if (!$imageEdited) {
-            $inputPath = 'images/processing/' . $videoID . "/" . $videoName . "_" . $imageNumber . '.jpg';
-        } else {
-            $inputPath = 'images/processing/' . $videoID . "/" . $videoName . "_" . $imageNumber . '_edited.jpg';
-        }
-
-        // Output path
-        $outputPath = 'images/processing/' . $videoID . "/" . $videoName . "_" . $imageNumber . '_edited.jpg';
-
-        // width and height
-        $width = $leftEnd - $leftStart;
-        $height = $topEnd - $topStart;
-
-        // Create imageManager
-        $manager = new ImageManager(new Driver());
-
-        // read image from file system
-        $image = $manager->read(base_path('storage/app/' . $inputPath));
-
-        // Get background color with 5px margin
-        $intcolor = $image->pickColor($leftStart - 5, $topStart);
-
-        // Draw rectangle
-        $image->drawRectangle($leftStart, $topStart, function ($rectangle) use ($width, $height, $intcolor) {
-            $rectangle->size($width, $height); // width & height of rectangle
-            $rectangle->background($intcolor); // background color of rectangle
-            $rectangle->border('white', 0); // border color & size of rectangle
-        });
-
-        // Save the modified image
-        $image->save(base_path('storage/app/' . $outputPath));
-
-        return true;
     }
 
     private function translateText($textToTranslate)
@@ -187,108 +123,6 @@ class VideoController extends Controller
 
         // Output the translated text
         return $translatedText;
-    }
-
-    private function addTranslatedTextToImage($textBlock, $margin, $videoID, $videoName, $imageNumber)
-    {
-        //Input path
-        $inputPath = 'images/processing/' . $videoID . "/" . $videoName . "_" . $imageNumber . '_edited.jpg';
-
-        // Output path
-        $outputPath = 'images/processing/' . $videoID . "/" . $videoName . "_" . $imageNumber . '_edited.jpg';
-
-        $lineWidth = $textBlock['leftEnd'] - $textBlock['leftStart'];
-        $lineHeight = $textBlock['topEnd'] - $textBlock['topStart'];
-
-        // Create imageManager
-        $manager = new ImageManager(new Driver());
-
-        // read image from file system
-        $image = $manager->read(base_path('storage/app/' . $inputPath));
-
-        // Translated text
-        $text = $textBlock['translatedText'];
-
-        // Calculate font size
-        $fontSize = 15;
-        $calculatedLineWidth = 0;
-        while ($calculatedLineWidth < $lineWidth) {
-            list($left,, $widthPX) = imageftbbox($fontSize, 0, public_path('fonts/Charis-SIL/CharisSILB.ttf'), $text);
-            $calculatedLineWidth = $widthPX / $textBlock['lineNum'];
-            $fontSize++;
-
-            // If font size is too big
-            if ($fontSize > 140) {
-                $fontSize = 15;
-                break;
-            }
-        }
-
-        $charactersAmount = strlen($text);
-
-        // Break lines after this amount of characters at any point
-        $split_length = floor($lineWidth / (floor($widthPX / $charactersAmount)) / 1.5) - 1;
-
-        mb_internal_encoding('UTF-8');
-        mb_regex_encoding('UTF-8');
-        $lines = preg_split('/(?<!^)(?!$)/u', $text);
-        $chunks = array_chunk($lines, $split_length);
-        $lines = array_map('implode', $chunks);
-
-        // Print characters
-        $lineHeightCalculated = round($lineHeight / $textBlock['lineNum']) + 4;
-
-        $maxWidth = 0;
-        for ($i = 0; $i < count($lines); $i++) {
-
-            // Check current line is last line
-            if (array_key_exists($i + 1, $lines)) {
-                //add ' - ' character to the line end
-                $lastCharacter = $lines[$i][-1];
-                $firstCharacterNextLine = $lines[$i + 1][0];
-
-                // Check if word ended
-                if (
-                    !($lastCharacter === ' ' || $firstCharacterNextLine === ' ' || $lastCharacter === ')' || $firstCharacterNextLine === ')')
-                ) {
-                    $lines[$i] .= '-';
-                }
-            }
-
-            $offset = $textBlock['topStart'] + ($i * $lineHeightCalculated) + $margin;
-            $image->text(
-                $lines[$i],
-                $textBlock['leftStart'],
-                $offset,
-                function ($font) use ($fontSize) {
-                    $font->file(
-                        public_path('fonts/Charis-SIL/CharisSILB.ttf')
-                    );
-                    $font->size($fontSize);
-                    $font->color('black');
-                }
-            );
-
-            // Calculate max width
-            $fontFile = public_path('fonts/Charis-SIL/CharisSILB.ttf');
-            // Get the bounding box of the text
-            list($left,, $widthPX2)  = imagettfbbox($fontSize, 0, $fontFile, $lines[$i]);
-
-            // Calculate the width of the text
-            if ($maxWidth < $widthPX2) {
-                $maxWidth = round($widthPX2 / 1.22);
-            }
-        }
-
-        // Save the modified image
-        $image->save(base_path('storage/app/' . $outputPath));
-
-        $outputArray = array(
-            'lineHeightCalculated' => $lineHeightCalculated,
-            'maxWidth' => $maxWidth,
-        );
-
-        return $outputArray;
     }
 
     private function createFolder($videoID)
@@ -331,29 +165,6 @@ class VideoController extends Controller
         }
     }
 
-    private function cropImage($leftStart, $topStart, $topEnd, $width, $videoID, $videoName, $imageNumber)
-    {
-        $imagePath = storage_path('app/images/processing/' . $videoID . "/" . $videoName . "_" . $imageNumber . '_edited');
-
-        // width and height
-        $height = $topEnd - $topStart;
-
-        $ffmpegCommand = [
-            env('FFMPEG_BINARIES'),
-            '-y', // -y option for overwrite
-            '-i', "$imagePath.jpg",
-            '-vf', "crop=$width:$height:$leftStart:$topStart", //coordinates
-            $imagePath . '_cropped.jpg',
-        ];
-
-        $process = new Process($ffmpegCommand);
-        $process->setTimeout(null); //No timeout
-        $process->run();
-        if (!$process->isSuccessful()) {
-            throw new \RuntimeException($process->getErrorOutput());
-        }
-    }
-
     private function placeImageOverlay($leftStart, $topStart, $videoID, $videoName, $videoFileExtension, $imageNumber, $iteration)
     {
         // If video already edited, then edit further
@@ -363,14 +174,14 @@ class VideoController extends Controller
             $videoChunkInputPath = storage_path('app/videos/processing/' . $videoID . "/" . $videoName . "_part_" . $imageNumber . '_translated_iteration_' . $iteration - 1 . "." . $videoFileExtension);
         }
 
-        $imagePath = storage_path('app/images/processing/' . $videoID . "/" . $videoName . "_" . $imageNumber . '_edited_cropped');
+        $image = storage_path('app/images/processing/' . $videoID . "/" . $videoName . "_" . $imageNumber . '_translated.png');
         $videoChunkOutputPath = storage_path('app/videos/processing/' . $videoID . "/" . $videoName . "_part_" . $imageNumber . '_translated_iteration_' . $iteration . "." . $videoFileExtension);
 
         $ffmpegCommand = [
             env('FFMPEG_BINARIES'),
             '-y', // -y option for overwrite
             '-i', $videoChunkInputPath,
-            '-i', "$imagePath.jpg",
+            '-i', $image,
             '-filter_complex', "overlay=$leftStart:$topStart",
             '-preset', 'fast',
             '-c:a', 'copy',
@@ -388,31 +199,34 @@ class VideoController extends Controller
         return $iteration;
     }
 
-    private function imageCreate($width, $height, $textBlock)
+    private function imageCreate($width, $height, $margin, $textBlock, $videoID, $videoName, $imageNumber)
     {
+        $outputPath = 'images/processing/' . $videoID . "/" . $videoName . "_" . $imageNumber . '_blank.png';
+
         $lineHeight = $textBlock['topEnd'] - $textBlock['topStart'];
         $lineHeightCalculated = intval($lineHeight / $textBlock['lineNum']);
 
-        $height = $height + $lineHeightCalculated;
+        $width = $width + $margin * 3;
+        $height = $height + $lineHeightCalculated + $margin;
         // Create a blank image
         $image = imagecreatetruecolor($width, $height);
 
-        // Set a background color (optional)
+        // Set a background color
         $backgroundColor = imagecolorallocate($image, 255, 255, 255);
         imagefill($image, 0, 0, $backgroundColor);
 
-        // Save the image to a file (optional)
-        $filename = public_path('output.png');
+        // Save the image to a file
+        $filename = base_path('storage/app/' . $outputPath);
         imagepng($image, $filename);
     }
 
-    private function addTranslatedTextToImageTwo($textBlock, $margin, $videoID, $videoName, $imageNumber)
+    private function addTranslatedTextToImage($textBlock, $margin, $videoID, $videoName, $imageNumber)
     {
         //Input path
-        $inputPath = 'images/processing/' . $videoID . "/" . $videoName . "_" . $imageNumber . '_edited.jpg';
+        $inputPath = 'images/processing/' . $videoID . "/" . $videoName . "_" . $imageNumber . '_blank.png';
 
         // Output path
-        $outputPath = 'images/processing/' . $videoID . "/" . $videoName . "_" . $imageNumber . '_edited.jpg';
+        $outputPath = 'images/processing/' . $videoID . "/" . $videoName . "_" . $imageNumber . '_translated.png';
 
         $lineWidth = $textBlock['leftEnd'] - $textBlock['leftStart'];
         $lineHeight = $textBlock['topEnd'] - $textBlock['topStart'];
@@ -423,7 +237,7 @@ class VideoController extends Controller
         $manager = new ImageManager(new Driver());
 
         // read image from file system
-        $image = $manager->read(public_path('output.png'));
+        $image = $manager->read(base_path('storage/app/' . $inputPath));
 
         // Translated text
         $text = $textBlock['translatedText'];
@@ -448,13 +262,13 @@ class VideoController extends Controller
         $lineHeightCalculated = intval($lineHeight / $textBlock['lineNum']);
 
         for ($i = 0; $i < count($lines); $i++) {
-
+            // Add word wrap
             $lines[$i] = $this->wordWrap($lines, $i);
 
-            $offset = ($i + 1) * $lineHeightCalculated;
+            $offset = ($i + 1) * $lineHeightCalculated + $margin;
             $image->text(
                 $lines[$i],
-                3,
+                3 + $margin,
                 $offset,
                 function ($font) use ($fontSize, $fontFile) {
                     $font->file($fontFile);
@@ -465,13 +279,7 @@ class VideoController extends Controller
         }
 
         // Save the modified image
-        $image->save(public_path('output_2.png'));
-
-        $outputArray = array(
-            'lineHeightCalculated' => $lineHeightCalculated,
-        );
-
-        return $outputArray;
+        $image->save(base_path('storage/app/' . $outputPath));
     }
 
     private function wordWrap($lines, $i)
