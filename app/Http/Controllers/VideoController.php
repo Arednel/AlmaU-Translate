@@ -44,6 +44,7 @@ class VideoController extends Controller
         // Round up and convert to integer
         $videoDuration = intval(ceil($videoDuration));
 
+        $margin = 7; //margin for text box
         // For each second take screenshot and process it via Tesseract
         for ($i = 0; $i < $videoDuration; $i++) {
             FFMpeg::fromDisk('local')
@@ -58,12 +59,13 @@ class VideoController extends Controller
 
             // Create rectangle over text with 4px margin Left and Top
             $imageEdited = false;
+            $iteration = 0;
             foreach ($textBlocks as $key => $value) {
                 $imageEdited = $this->addRectangleToImage(
-                    $value['leftStart'] - 4,
-                    $value['topStart'] - 6,
-                    $value['leftEnd'],
-                    $value['topEnd'],
+                    $value['leftStart'] - $margin,
+                    $value['topStart'] - $margin,
+                    $value['leftEnd'] + $margin,
+                    $value['topEnd'] + $margin,
                     $videoID,
                     $videoName,
                     $i,
@@ -76,7 +78,31 @@ class VideoController extends Controller
                 // $textBlocks[$key]['translatedText'] = $translatedText;
                 $textBlocks[$key]['translatedText'] = $value['text'];
 
-                $this->addTranslatedTextToImage($textBlocks[$key], $videoID, $videoName, $i);
+                $outputArray = $this->addTranslatedTextToImage($textBlocks[$key], $margin, $videoID, $videoName, $i);
+                $lineHeightCalculated = $outputArray['lineHeightCalculated'];
+                $maxWidth = $outputArray['maxWidth'];
+
+                // First, crop translated text
+                $this->cropImage(
+                    $value['leftStart'] - $margin,
+                    $value['topStart'] - $lineHeightCalculated,
+                    $value['leftEnd'],
+                    $value['topEnd'],
+                    $maxWidth,
+                    $videoID,
+                    $videoName,
+                    $i
+                );
+
+                $iteration = $this->placeImageOverlay(
+                    $value['leftStart'] - $margin,
+                    $value['topStart'] - $margin,
+                    $videoID,
+                    $videoName,
+                    $videoFileExtension,
+                    $i,
+                    $iteration
+                );
             }
 
             // TO DO Replace in video each frame with edited file
@@ -105,11 +131,11 @@ class VideoController extends Controller
         if (!$imageEdited) {
             $inputPath = 'images/processing/' . $videoID . "/" . $videoName . "_" . $imageNumber . '.jpg';
         } else {
-            $inputPath = 'images/processing/' . $videoID . "/" . $videoName . "_" . $imageNumber . '_Edited.jpg';
+            $inputPath = 'images/processing/' . $videoID . "/" . $videoName . "_" . $imageNumber . '_edited.jpg';
         }
 
         // Output path
-        $outputPath = 'images/processing/' . $videoID . "/" . $videoName . "_" . $imageNumber . '_Edited.jpg';
+        $outputPath = 'images/processing/' . $videoID . "/" . $videoName . "_" . $imageNumber . '_edited.jpg';
 
         // width and height
         $width = $leftEnd - $leftStart;
@@ -164,13 +190,13 @@ class VideoController extends Controller
         return $translatedText;
     }
 
-    private function addTranslatedTextToImage($textBlock, $videoID, $videoName, $imageNumber)
+    private function addTranslatedTextToImage($textBlock, $margin, $videoID, $videoName, $imageNumber)
     {
         //Input path
-        $inputPath = 'images/processing/' . $videoID . "/" . $videoName . "_" . $imageNumber . '_Edited.jpg';
+        $inputPath = 'images/processing/' . $videoID . "/" . $videoName . "_" . $imageNumber . '_edited.jpg';
 
         // Output path
-        $outputPath = 'images/processing/' . $videoID . "/" . $videoName . "_" . $imageNumber . '_Edited.jpg';
+        $outputPath = 'images/processing/' . $videoID . "/" . $videoName . "_" . $imageNumber . '_edited.jpg';
 
         $lineWidth = $textBlock['leftEnd'] - $textBlock['leftStart'];
         $lineHeight = $textBlock['topEnd'] - $textBlock['topStart'];
@@ -212,6 +238,8 @@ class VideoController extends Controller
 
         // Print characters
         $lineHeightCalculated = round($lineHeight / $textBlock['lineNum']) + 4;
+
+        $maxWidth = 0;
         for ($i = 0; $i < count($lines); $i++) {
 
             // Check current line is last line
@@ -228,7 +256,7 @@ class VideoController extends Controller
                 }
             }
 
-            $offset = $textBlock['topStart'] + ($i * $lineHeightCalculated);
+            $offset = $textBlock['topStart'] + ($i * $lineHeightCalculated) + $margin;
             $image->text(
                 $lines[$i],
                 $textBlock['leftStart'],
@@ -241,10 +269,35 @@ class VideoController extends Controller
                     $font->color('black');
                 }
             );
+
+            // Calculate max width
+            $fontFile = public_path('fonts/Charis-SIL/CharisSILB.ttf');
+            // Get the bounding box of the text
+            list($left,, $widthPX2)  = imagettfbbox($fontSize, 0, $fontFile, $lines[$i]);
+            // Calculate the width of the text
+            var_dump(
+                "widthPX2 - $widthPX2",
+                $lines[$i],
+                "calculatedLineWidth - $calculatedLineWidth"
+            );
+            if ($maxWidth < $widthPX2) {
+                $maxWidth = round($widthPX2 / 1.22);
+            }
+            // TO DO Max width is diffirent
         }
 
+        var_dump(
+            "maxWidth final - $maxWidth",
+        );
         // Save the modified image
         $image->save(base_path('storage/app/' . $outputPath));
+
+        $outputArray = array(
+            'lineHeightCalculated' => $lineHeightCalculated,
+            'maxWidth' => $maxWidth,
+        );
+
+        return $outputArray;
     }
 
     private function createFolder($videoID)
@@ -255,7 +308,7 @@ class VideoController extends Controller
             mkdir($folderPath, 0777, true);
         }
 
-        // Create folder for processing purposes output
+        // Create folder for processing purposes for output
         $folderPath = storage_path("/app/output/$videoID");
         if (!file_exists($folderPath)) {
             mkdir($folderPath, 0777, true);
@@ -285,5 +338,77 @@ class VideoController extends Controller
         if (!$process->isSuccessful()) {
             throw new \RuntimeException($process->getErrorOutput());
         }
+    }
+
+    private function cropImage(
+        $leftStart,
+        $topStart,
+        $leftEnd,
+        $topEnd,
+        $width,
+        $videoID,
+        $videoName,
+        $imageNumber,
+    ) {
+        $imagePath = storage_path('app/images/processing/' . $videoID . "/" . $videoName . "_" . $imageNumber . '_edited');
+
+        // width and height
+        $height = $topEnd - $topStart;
+
+        $ffmpegCommand = [
+            env('FFMPEG_BINARIES'),
+            '-y', // -y option for overwrite
+            '-i', "$imagePath.jpg",
+            '-vf', "crop=$width:$height:$leftStart:$topStart", //coordinates
+            $imagePath . '_cropped.jpg',
+        ];
+
+        $process = new Process($ffmpegCommand);
+        $process->setTimeout(null); //No timeout
+        $process->run();
+        if (!$process->isSuccessful()) {
+            throw new \RuntimeException($process->getErrorOutput());
+        }
+    }
+
+    private function placeImageOverlay(
+        $leftStart,
+        $topStart,
+        $videoID,
+        $videoName,
+        $videoFileExtension,
+        $imageNumber,
+        $iteration,
+    ) {
+        // If image already edited, then edit further
+        if ($iteration == 0) {
+            $videoChunkInputPath = storage_path('app/videos/processing/' . $videoID . "/" . $videoName . "_part_" . $imageNumber . '.' . $videoFileExtension);
+        } else {
+            $videoChunkInputPath = storage_path('app/videos/processing/' . $videoID . "/" . $videoName . "_part_" . $imageNumber . '_translated_iteration_' . $iteration - 1 . "." . $videoFileExtension);
+        }
+
+        $imagePath = storage_path('app/images/processing/' . $videoID . "/" . $videoName . "_" . $imageNumber . '_edited_cropped');
+        $videoChunkOutputPath = storage_path('app/videos/processing/' . $videoID . "/" . $videoName . "_part_" . $imageNumber . '_translated_iteration_' . $iteration . "." . $videoFileExtension);
+
+        $ffmpegCommand = [
+            env('FFMPEG_BINARIES'),
+            '-y', // -y option for overwrite
+            '-i', $videoChunkInputPath,
+            '-i', "$imagePath.jpg",
+            '-filter_complex', "overlay=$leftStart:$topStart",
+            '-preset', 'fast',
+            '-c:a', 'copy',
+            $videoChunkOutputPath,
+        ];
+
+        $process = new Process($ffmpegCommand);
+        $process->setTimeout(null); //No timeout
+        $process->run();
+        if (!$process->isSuccessful()) {
+            throw new \RuntimeException($process->getErrorOutput());
+        }
+
+        $iteration++;
+        return $iteration;
     }
 }
