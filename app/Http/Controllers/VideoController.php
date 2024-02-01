@@ -18,10 +18,7 @@ class VideoController extends Controller
 {
     public function processVideo()
     {
-        // Kinda fixed
-        $ffprobe = FFProbe::create([
-            'ffprobe.binaries' => env('FFPROBE_BINARIES')
-        ]);
+        $ffprobe = FFProbe::create();
 
         $videoName = '1';
         $videoFileExtension = 'mkv';
@@ -31,7 +28,7 @@ class VideoController extends Controller
         $videoPathFull = storage_path("/app/videos/new/$videoID/$fullVideoName");
         $videoPathShort = "videos/new/$videoID/$fullVideoName";
 
-        // Create folder
+        // Create folders
         $this->createFolder($videoID);
 
         // Divide video to one second parts
@@ -45,17 +42,18 @@ class VideoController extends Controller
         $videoDuration = intval(ceil($videoDuration));
 
         $margin = 7; //margin for text box
+        
         // For each second take screenshot and process it via Tesseract
-        for ($i = 0; $i < $videoDuration; $i++) {
+        for ($imageNumber = 0; $imageNumber < $videoDuration; $imageNumber++) {
             FFMpeg::fromDisk('local')
                 ->open($videoPathShort)
-                ->getFrameFromSeconds($i)
+                ->getFrameFromSeconds($imageNumber)
                 ->export()
                 ->toDisk('local')
-                ->save('/images/processing/' . $videoID . '/' . $videoName . '_' . $i . '.jpg');
+                ->save('/images/processing/' . $videoID . '/' . $videoName . '_' . $imageNumber . '.jpg');
 
             // Get data from image(text, location, etc.)
-            $textBlocks = TesseractController::getTextFromImage($videoID, $videoName, $i);
+            $textBlocks = TesseractController::getTextFromImage($videoID, $videoName, $imageNumber);
 
             // Create rectangle over text with 4px margin Left and Top
             $iteration = 0;
@@ -71,9 +69,9 @@ class VideoController extends Controller
                 $lineHeight = $value['topEnd'] - $value['topStart'];
 
                 // Create blank image
-                $this->imageCreate($lineWidth, $lineHeight, $margin, $textBlocks[$key], $videoID, $videoName, $i);
+                $this->imageCreate($lineWidth, $lineHeight, $margin, $textBlocks[$key], $videoID, $videoName, $imageNumber);
 
-                $this->addTranslatedTextToImage($textBlocks[$key], $margin, $videoID, $videoName, $i);
+                $this->addTranslatedTextToImage($textBlocks[$key], $margin, $videoID, $videoName, $imageNumber);
 
                 $iteration = $this->placeImageOverlay(
                     $value['leftStart'] - $margin,
@@ -81,7 +79,7 @@ class VideoController extends Controller
                     $videoID,
                     $videoName,
                     $videoFileExtension,
-                    $i,
+                    $imageNumber,
                     $iteration
                 );
             }
@@ -91,38 +89,9 @@ class VideoController extends Controller
             dd($textBlocks);
         }
 
-        // Delete output.json file
-        $outputPath = base_path('storage/app/output/' . $videoName . '_output.json');
-        File::delete($outputPath);
+        $this->cleanUp($videoID, $videoName, $imageNumber);
 
         dd('Complete');
-    }
-
-    private function translateText($textToTranslate)
-    {
-        // Replace 'YOUR_API_KEY' with your actual API key
-        $apiKey = env('GOOGLE_TRANSLATE_API_KEY');
-
-        // Target language code
-        $targetLanguage = 'kk';
-
-        // API endpoint URL
-        $apiUrl = "https://translation.googleapis.com/language/translate/v2?key={$apiKey}&q={$textToTranslate}&target={$targetLanguage}";
-
-        // Create a Guzzle HTTP client
-        $client = new Client();
-
-        // Make a GET request
-        $response = $client->get($apiUrl);
-
-        // Get the response body as a JSON object
-        $responseData = json_decode($response->getBody(), true);
-
-        // Access the translated text
-        $translatedText = $responseData['data']['translations'][0]['translatedText'];
-
-        // Output the translated text
-        return $translatedText;
     }
 
     private function createFolder($videoID)
@@ -165,40 +134,6 @@ class VideoController extends Controller
         }
     }
 
-    private function placeImageOverlay($leftStart, $topStart, $videoID, $videoName, $videoFileExtension, $imageNumber, $iteration)
-    {
-        // If video already edited, then edit further
-        if ($iteration == 0) {
-            $videoChunkInputPath = storage_path('app/videos/processing/' . $videoID . "/" . $videoName . "_part_" . $imageNumber . '.' . $videoFileExtension);
-        } else {
-            $videoChunkInputPath = storage_path('app/videos/processing/' . $videoID . "/" . $videoName . "_part_" . $imageNumber . '_translated_iteration_' . $iteration - 1 . "." . $videoFileExtension);
-        }
-
-        $image = storage_path('app/images/processing/' . $videoID . "/" . $videoName . "_" . $imageNumber . '_translated.png');
-        $videoChunkOutputPath = storage_path('app/videos/processing/' . $videoID . "/" . $videoName . "_part_" . $imageNumber . '_translated_iteration_' . $iteration . "." . $videoFileExtension);
-
-        $ffmpegCommand = [
-            env('FFMPEG_BINARIES'),
-            '-y', // -y option for overwrite
-            '-i', $videoChunkInputPath,
-            '-i', $image,
-            '-filter_complex', "overlay=$leftStart:$topStart",
-            '-preset', 'fast',
-            '-c:a', 'copy',
-            $videoChunkOutputPath,
-        ];
-
-        $process = new Process($ffmpegCommand);
-        $process->setTimeout(null); //No timeout
-        $process->run();
-        if (!$process->isSuccessful()) {
-            throw new \RuntimeException($process->getErrorOutput());
-        }
-
-        $iteration++;
-        return $iteration;
-    }
-
     private function imageCreate($width, $height, $margin, $textBlock, $videoID, $videoName, $imageNumber)
     {
         $outputPath = 'images/processing/' . $videoID . "/" . $videoName . "_" . $imageNumber . '_blank.png';
@@ -207,7 +142,14 @@ class VideoController extends Controller
         $lineHeightCalculated = intval($lineHeight / $textBlock['lineNum']);
 
         $width = $width + $margin * 3;
+
         $height = $height + $lineHeightCalculated + $margin;
+
+        // If calculated height is bigger, use it 
+        $calculatedHeight = $this->calculateHeight($textBlock);
+        if ($height < $calculatedHeight) {
+            $height = $calculatedHeight;
+        }
         // Create a blank image
         $image = imagecreatetruecolor($width, $height);
 
@@ -218,6 +160,58 @@ class VideoController extends Controller
         // Save the image to a file
         $filename = base_path('storage/app/' . $outputPath);
         imagepng($image, $filename);
+    }
+
+    private function calculateHeight($textBlock)
+    {
+        $lineWidth = $textBlock['leftEnd'] - $textBlock['leftStart'];
+
+        // Translated text
+        $text = $textBlock['translatedText'];
+
+        $fontSize = $textBlock['fontSize'];
+
+        $bbox = imageftbbox($fontSize, 0, public_path('fonts/Charis-SIL/CharisSILB.ttf'), $text);
+        // Calculate text width, (/ 1.38 is to get real width)
+        $widthTranslatedTextPx = ceil($bbox[2] / 1.38);
+
+        $charactersAmount = mb_strlen($text);
+
+        // Break lines after this amount of characters at any point (-1 is to add later '-')
+        $split_length = floor($lineWidth / (ceil($widthTranslatedTextPx / $charactersAmount))) - 1;
+
+        $linesAmount = ceil($charactersAmount / $split_length);
+
+        $calculatedHeight = ceil((ceil($bbox[1] + (-$bbox[5])) * $linesAmount) / 1.38);
+
+        return $calculatedHeight;
+    }
+
+    private function translateText($textToTranslate)
+    {
+        // Replace 'YOUR_API_KEY' with your actual API key
+        $apiKey = env('GOOGLE_TRANSLATE_API_KEY');
+
+        // Target language code
+        $targetLanguage = 'kk';
+
+        // API endpoint URL
+        $apiUrl = "https://translation.googleapis.com/language/translate/v2?key={$apiKey}&q={$textToTranslate}&target={$targetLanguage}";
+
+        // Create a Guzzle HTTP client
+        $client = new Client();
+
+        // Make a GET request
+        $response = $client->get($apiUrl);
+
+        // Get the response body as a JSON object
+        $responseData = json_decode($response->getBody(), true);
+
+        // Access the translated text
+        $translatedText = $responseData['data']['translations'][0]['translatedText'];
+
+        // Output the translated text
+        return $translatedText;
     }
 
     private function addTranslatedTextToImage($textBlock, $margin, $videoID, $videoName, $imageNumber)
@@ -242,15 +236,16 @@ class VideoController extends Controller
         // Translated text
         $text = $textBlock['translatedText'];
 
-        // Calculate font size
         $fontSize = $textBlock['fontSize'];
 
-        list($left,, $widthPX) = imageftbbox($fontSize, 0, public_path('fonts/Charis-SIL/CharisSILB.ttf'), $text);
+        $bbox = imageftbbox($fontSize, 0, public_path('fonts/Charis-SIL/CharisSILB.ttf'), $text);
+        // Calculate text width, (/ 1.38 is to get real width)
+        $widthTranslatedTextPx = ceil($bbox[2] / 1.38);
 
-        $charactersAmount = strlen($text);
+        $charactersAmount = mb_strlen($text);
 
-        // Break lines after this amount of characters at any point
-        $split_length = floor($lineWidth / (floor($widthPX / $charactersAmount)) / 1.5) - 1;
+        // Break lines after this amount of characters at any point (-1 is to add later '-')
+        $split_length = floor($lineWidth / (ceil($widthTranslatedTextPx / $charactersAmount))) - 1;
 
         mb_internal_encoding('UTF-8');
         mb_regex_encoding('UTF-8');
@@ -298,5 +293,45 @@ class VideoController extends Controller
         }
 
         return $lines[$i];
+    }
+
+    private function placeImageOverlay($leftStart, $topStart, $videoID, $videoName, $videoFileExtension, $imageNumber, $iteration)
+    {
+        // If video already edited, then edit further
+        if ($iteration == 0) {
+            $videoChunkInputPath = storage_path('app/videos/processing/' . $videoID . "/" . $videoName . "_part_" . $imageNumber . '.' . $videoFileExtension);
+        } else {
+            $videoChunkInputPath = storage_path('app/videos/processing/' . $videoID . "/" . $videoName . "_part_" . $imageNumber . '_translated_iteration_' . $iteration - 1 . "." . $videoFileExtension);
+        }
+
+        $image = storage_path('app/images/processing/' . $videoID . "/" . $videoName . "_" . $imageNumber . '_translated.png');
+        $videoChunkOutputPath = storage_path('app/videos/processing/' . $videoID . "/" . $videoName . "_part_" . $imageNumber . '_translated_iteration_' . $iteration . "." . $videoFileExtension);
+
+        $ffmpegCommand = [
+            env('FFMPEG_BINARIES'),
+            '-y', // -y option for overwrite
+            '-i', $videoChunkInputPath,
+            '-i', $image,
+            '-filter_complex', "overlay=$leftStart:$topStart",
+            '-preset', 'fast',
+            '-c:a', 'copy',
+            $videoChunkOutputPath,
+        ];
+
+        $process = new Process($ffmpegCommand);
+        $process->setTimeout(null); //No timeout
+        $process->run();
+        if (!$process->isSuccessful()) {
+            throw new \RuntimeException($process->getErrorOutput());
+        }
+
+        $iteration++;
+        return $iteration;
+    }
+
+    private function cleanUp($videoID, $videoName, $imageNumber)
+    {
+        // Delete output folder
+        File::deleteDirectory(base_path('storage/app/output/' . $videoID));
     }
 }
