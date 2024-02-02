@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use GuzzleHttp\Client;
 
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\File;
 
 use Intervention\Image\ImageManager;
@@ -29,7 +30,10 @@ class VideoController extends Controller
         $videoPathShort = "videos/new/$videoID/$fullVideoName";
 
         // Create folders
-        $this->createFolder($videoID);
+        $this->createFolders($videoID);
+
+        // Create empty txt file
+        $this->createTxtFile($videoID, $videoName);
 
         // Divide video to one second parts
         // $this->divideVideoToChunks($videoPathFull, $videoID, $videoName);
@@ -42,7 +46,7 @@ class VideoController extends Controller
         $videoDuration = intval(ceil($videoDuration));
 
         $margin = 7; //margin for text box
-        
+
         // For each second take screenshot and process it via Tesseract
         for ($imageNumber = 0; $imageNumber < $videoDuration; $imageNumber++) {
             FFMpeg::fromDisk('local')
@@ -55,7 +59,6 @@ class VideoController extends Controller
             // Get data from image(text, location, etc.)
             $textBlocks = TesseractController::getTextFromImage($videoID, $videoName, $imageNumber);
 
-            // Create rectangle over text with 4px margin Left and Top
             $iteration = 0;
             foreach ($textBlocks as $key => $value) {
 
@@ -84,28 +87,51 @@ class VideoController extends Controller
                 );
             }
 
-            // TO DO Replace in video each frame with edited file
+            // Check if there was any text
+            if ($iteration != 0) {
+                // This is fix, so valid iteration is writed to txt file
+                $iteration--;
 
-            dd($textBlocks);
+                // Add video path to txt file
+                $this->addToTxtList($videoID, $videoName, $videoFileExtension, $imageNumber, $iteration, true);
+            }
+            // If there in no text to translate
+            else {
+                // Add video path to txt file
+                $this->addToTxtList($videoID, $videoName, $videoFileExtension, $imageNumber, null, false);
+            }
+
+
+            //TO DO Remove        
+            if ($imageNumber == 1) {
+                break;
+            }
+            // dd($textBlocks);
         }
 
+        $this->mergeVideoParts($videoID, $videoName, $videoFileExtension);
+
+        // Cleanup
         $this->cleanUp($videoID, $videoName, $imageNumber);
 
         dd('Complete');
     }
 
-    private function createFolder($videoID)
+    private function createFolders($videoID)
     {
-        // Create folder for processing purposes for video chunks
-        $folderPath = storage_path("/app/videos/processing/$videoID");
-        if (!file_exists($folderPath)) {
-            mkdir($folderPath, 0777, true);
-        }
+        // Required folders array
+        $folders = [
+            storage_path("app/images/processing/$videoID"),
+            storage_path("app/output/$videoID"),
+            storage_path("app/videos/processing/$videoID"),
+            storage_path("app/videos/completed/$videoID"),
+        ];
 
-        // Create folder for processing purposes for output
-        $folderPath = storage_path("/app/output/$videoID");
-        if (!file_exists($folderPath)) {
-            mkdir($folderPath, 0777, true);
+        // Create folders, if they do not exist
+        foreach ($folders as $folderPath) {
+            if (!file_exists($folderPath)) {
+                mkdir($folderPath, 0777, true);
+            }
         }
     }
 
@@ -321,17 +347,84 @@ class VideoController extends Controller
         $process = new Process($ffmpegCommand);
         $process->setTimeout(null); //No timeout
         $process->run();
+
         if (!$process->isSuccessful()) {
             throw new \RuntimeException($process->getErrorOutput());
         }
 
         $iteration++;
+
         return $iteration;
+    }
+
+    private function createTxtFile($videoID, $videoName)
+    {
+        $fileName = $videoName . '_video_parts_list.txt';
+        $fileFullPath = "output/$videoID/$fileName";
+
+        $contents = '';
+
+        // Create empty txt file
+        Storage::disk('local')->put($fileFullPath, $contents);
+    }
+
+    private function addToTxtList($videoID, $videoName, $videoFileExtension, $imageNumber, $iteration, $mergeTranslatedPart)
+    {
+        $fileName = $videoName . '_video_parts_list.txt';
+        $fileFullPath = "output/$videoID/$fileName";
+
+        if ($mergeTranslatedPart) {
+            $videoName = storage_path('app/videos/processing/' . $videoID . '/' . $videoName . '_part_' . $imageNumber . '_translated_iteration_' . $iteration . '.' . $videoFileExtension);
+        }
+        // If there was no text to translate
+        else {
+            $videoName = storage_path('app/videos/processing/' . $videoID . '/' . $videoName . '_part_' . $imageNumber . '.' . $videoFileExtension);
+        }
+
+        $contents = "file '$videoName'";
+
+        // Append video part path to txt file
+        Storage::disk('local')->append($fileFullPath, $contents);
+    }
+
+    private function mergeVideoParts($videoID, $videoName, $videoFileExtension)
+    {
+        $fileName = $videoName . '_video_parts_list.txt';
+        $fileFullPath = base_path("storage/app/output/$videoID/$fileName");
+
+        $videoOutput = storage_path('app/videos/completed/' . $videoID . "/" . $videoName . "_translated." . $videoFileExtension);
+
+        $ffmpegCommand = [
+            env('FFMPEG_BINARIES'),
+            '-y', // -y option for overwrite
+            '-safe', '0',
+            '-f', 'concat',
+            '-i', $fileFullPath,
+            '-c', 'copy',
+            $videoOutput,
+        ];
+
+        $process = new Process($ffmpegCommand);
+        $process->setTimeout(null); //No timeout
+        $process->run();
+
+        if (!$process->isSuccessful()) {
+            throw new \RuntimeException($process->getErrorOutput());
+        }
     }
 
     private function cleanUp($videoID, $videoName, $imageNumber)
     {
-        // Delete output folder
-        File::deleteDirectory(base_path('storage/app/output/' . $videoID));
+        // Folders to cleanup
+        $folders = [
+            storage_path("app/images/processing/$videoID"),
+            storage_path("app/output/$videoID"),
+            // storage_path("app/videos/processing/$videoID"), //TO DO remove comment
+        ];
+
+        // Delete folders
+        foreach ($folders as $folderPath) {
+            File::deleteDirectory($folderPath);
+        }
     }
 }
