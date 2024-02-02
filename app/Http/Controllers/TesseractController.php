@@ -56,8 +56,6 @@ class TesseractController extends Controller
                     $textBlocks[$previousBlockNum]['leftEnd'] = $dataArray['left'][$key] + $dataArray['width'][$key];
                 }
 
-
-
                 // Set box end from left
                 if (array_key_exists('leftEnd', $textBlocks[$previousBlockNum])) {
                     // If current leftEnd is smaller then set it
@@ -74,8 +72,6 @@ class TesseractController extends Controller
                 if ($textBlocks[$previousBlockNum]['text']) {
                     $textBlocks[$previousBlockNum]['fontSize'] = TesseractController::calculateFontSize($textBlocks[$previousBlockNum]);
                 }
-
-                // TO DO Merge close text blocs (on the same line) (like part at 40 seconds)
             }
             // Set previous block value as current block
             $previousBlockNum = $value;
@@ -83,20 +79,7 @@ class TesseractController extends Controller
 
         $textBlocks = TesseractController::cleanUpTextBlocks($textBlocks);
 
-        return $textBlocks;
-    }
-
-    private static function cleanUpTextBlocks($textBlocks)
-    {
-        // Remove english only and 1 or 2 character text blocks
-        foreach ($textBlocks as $key => $value) {
-            if (
-                preg_match('/^[a-zA-Z ]+$/', $value['text']) ||
-                strlen($value['text']) < 3
-            ) {
-                unset($textBlocks[$key]);
-            }
-        }
+        $textBlocks = TesseractController::mergeCloseTextBlocks($textBlocks);
 
         return $textBlocks;
     }
@@ -122,8 +105,66 @@ class TesseractController extends Controller
                 break;
             }
         }
+
+        //Make font size slightly smaller
         $fontSize--;
 
         return $fontSize;
+    }
+
+    private static function cleanUpTextBlocks($textBlocks)
+    {
+        // Remove english only and 1 or 2 character text blocks
+        foreach ($textBlocks as $key => $textBlock) {
+            if (
+                preg_match('/^[a-zA-Z ]+$/', $textBlock['text']) ||
+                strlen($textBlock['text']) < 3
+            ) {
+                unset($textBlocks[$key]);
+            }
+        }
+
+        return $textBlocks;
+    }
+
+    private static function mergeCloseTextBlocks($textBlocks)
+    {
+        $previousTextBlock = null;
+
+        foreach ($textBlocks as $key => $textBlock) {
+            if ($previousTextBlock) {
+                // If current text block inside previous text block
+                if (
+                    $textBlock['leftStart'] >= $previousTextBlock['leftStart']
+                    && $textBlock['leftStart'] <= $previousTextBlock['leftEnd']
+                    && $textBlock['topStart'] >= $previousTextBlock['topStart']
+                    && $textBlock['topStart'] <= $previousTextBlock['topEnd']
+                ) {
+                    // Merge text in text blocks
+                    $textBlocks[$key - 1]['text'] .= ' ' . $textBlocks[$key]['text'];
+
+                    // Set size
+                    $textBlocks[$key - 1]['leftEnd'] = $textBlocks[$key]['leftEnd'];
+                    $textBlocks[$key - 1]['topEnd'] = $textBlocks[$key]['topEnd'];
+
+                    // Calculate amount of lines to add
+                    $currentBlockLineHegiht = ($textBlock['topEnd'] - $textBlock['topStart']) / $textBlock['lineNum'];
+                    $extraLines = intval(
+                        floor(
+                            ($textBlock['topEnd'] - $previousTextBlock['topEnd']) / $currentBlockLineHegiht
+                        )
+                    );
+                    $textBlocks[$key - 1]['lineNum'] += $extraLines;
+
+                    // Calculate font size
+                    $textBlocks[$key - 1]['fontSize'] = TesseractController::calculateFontSize($textBlocks[$key - 1]);
+
+                    unset($textBlocks[$key]);
+                }
+            }
+            $previousTextBlock = $textBlock;
+        }
+
+        return $textBlocks;
     }
 }

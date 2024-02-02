@@ -40,8 +40,8 @@
     <br>
     <a href="/">← На главную</a>
 
-    <p>version 0.6.0.1 / 2024.02.02</p>
-    <p>Fix</p>
+    <p>version 0.6.1 / 2024.02.02</p>
+    <p>Merge close text blocks</p>
 </body>
 
 </html>
