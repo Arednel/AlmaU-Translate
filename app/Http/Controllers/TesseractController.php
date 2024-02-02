@@ -36,7 +36,6 @@ class TesseractController extends Controller
     {
         $textBlocks = [];
         $previousBlockNum = 0;
-        $previousLineNum = NULL;
 
         // Get text as blocks
         foreach ($dataArray['block_num'] as $key => $value) {
@@ -71,14 +70,14 @@ class TesseractController extends Controller
                 $textBlocks[$previousBlockNum]['topEnd'] = $dataArray['top'][$key] + $dataArray['height'][$key];
                 $textBlocks[$previousBlockNum]['lineNum'] = $dataArray['line_num'][$key];
 
-                // Check if it is new line, then calculate fontSize 
-                if ($dataArray['line_num'][$key] != $previousLineNum) {
+                // Calculate font size, if there any text
+                if ($textBlocks[$previousBlockNum]['text']) {
                     $textBlocks[$previousBlockNum]['fontSize'] = TesseractController::calculateFontSize($textBlocks[$previousBlockNum]);
                 }
-                $previousLineNum = $dataArray['line_num'][$key];
-            }
 
-            // Set block value
+                // TO DO Merge close text blocs (on the same line) (like part at 40 seconds)
+            }
+            // Set previous block value as current block
             $previousBlockNum = $value;
         }
 
@@ -89,10 +88,9 @@ class TesseractController extends Controller
 
     private static function cleanUpTextBlocks($textBlocks)
     {
-        // Remove empty, english only and 1 or 2 character arrays
+        // Remove english only and 1 or 2 character text blocks
         foreach ($textBlocks as $key => $value) {
             if (
-                $value['text'] == ' ' ||
                 preg_match('/^[a-zA-Z ]+$/', $value['text']) ||
                 strlen($value['text']) < 3
             ) {
