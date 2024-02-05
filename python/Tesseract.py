@@ -18,7 +18,7 @@ parentDir = os.path.abspath(os.path.join(currentDir, os.pardir))
 
 storageDir = parentDir + "\\storage\\app\\"
 
-img = cv2.imread(storageDir + "images\\processing\\" + videoID + "\\" + videoName + "_" + imageNumber + ".jpg")
+img = cv2.imread(storageDir + "images\\processing\\" + videoID + "\\" + videoName + "_" + imageNumber + ".png")
 
 # Get output from tesseract as dictionary
 dictionary = pytesseract.image_to_data(img, lang="rus+eng", output_type=Output.DICT)

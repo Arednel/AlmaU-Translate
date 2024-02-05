@@ -19,9 +19,7 @@ class VideoController extends Controller
 {
     public function processVideo()
     {
-        $ffprobe = FFProbe::create();
-
-        $videoName = '1';
+        $videoName = '2';
         $videoFileExtension = 'mkv';
         $videoID = 10;
         $fullVideoName = "$videoName.$videoFileExtension";
@@ -39,22 +37,18 @@ class VideoController extends Controller
         // $this->divideVideoToChunks($videoPathFull, $videoID, $videoName);
 
         // Get video duration
-        $videoDuration = $ffprobe
-            ->format($videoPathFull) // extracts file informations
-            ->get('duration');
-        // Round up and convert to integer
-        $videoDuration = intval(ceil($videoDuration));
+        $videoDuration = $this->getVideoDuration($videoPathFull);
 
-        $margin = 7; //margin for text box
+        $margin = 7; //margin to add to text box (extra width and height)
 
-        // For each second take screenshot and process it via Tesseract
-        for ($imageNumber = 0; $imageNumber < $videoDuration; $imageNumber++) {
+        // For each second take screenshot and process it via Tesseract (except last second, this is fix)
+        for ($imageNumber = 0; $imageNumber < $videoDuration - 1; $imageNumber++) {
             FFMpeg::fromDisk('local')
                 ->open($videoPathShort)
                 ->getFrameFromSeconds($imageNumber)
                 ->export()
                 ->toDisk('local')
-                ->save('/images/processing/' . $videoID . '/' . $videoName . '_' . $imageNumber . '.jpg');
+                ->save('/images/processing/' . $videoID . '/' . $videoName . '_' . $imageNumber . '.png');
 
             // Get data from image(text, location, etc.)
             $textBlocks = TesseractController::getTextFromImage($videoID, $videoName, $imageNumber);
@@ -101,9 +95,8 @@ class VideoController extends Controller
                 $this->addToTxtList($videoID, $videoName, $videoFileExtension, $imageNumber, null, false);
             }
 
-
-            //TO DO Remove        
-            if ($imageNumber == 1) {
+            //TO DO Remove, only for debugging      
+            if ($imageNumber >= 0) {
                 break;
             }
             // dd($textBlocks);
@@ -111,16 +104,20 @@ class VideoController extends Controller
 
         $this->mergeVideoParts($videoID, $videoName, $videoFileExtension);
 
+        // Place original audio track
+        $this->fixAudio($videoID, $videoName, $videoFileExtension);
+
         // Cleanup
         $this->cleanUp($videoID, $videoName, $imageNumber);
 
-        dd('Complete');
+        dd('Processing completed', $textBlocks);
     }
 
     private function createFolders($videoID)
     {
         // Required folders array
         $folders = [
+            storage_path("app/audio/processing/$videoID"),
             storage_path("app/images/processing/$videoID"),
             storage_path("app/output/$videoID"),
             storage_path("app/videos/processing/$videoID"),
@@ -133,6 +130,33 @@ class VideoController extends Controller
                 mkdir($folderPath, 0777, true);
             }
         }
+    }
+
+    private function runProcess($command)
+    {
+        $process = new Process($command);
+        $process->setTimeout(null); //No timeout
+        $process->run();
+
+        if (!$process->isSuccessful()) {
+            throw new \RuntimeException($process->getErrorOutput());
+        }
+
+        return $process->getOutput();
+    }
+
+    private function getVideoDuration($videoPathFull)
+    {
+        $ffprobe = FFProbe::create();
+
+        $videoDuration = $ffprobe
+            ->format($videoPathFull)
+            ->get('duration');
+
+        // Round up and convert to integer
+        $videoDuration = intval(ceil($videoDuration));
+
+        return $videoDuration;
     }
 
     private function divideVideoToChunks($videoPathFull, $videoID, $videoName)
@@ -152,12 +176,7 @@ class VideoController extends Controller
             storage_path("/app/videos/processing/$videoID/"  . $videoName . '_part_%d.mkv'),
         ];
 
-        $process = new Process($ffmpegCommand);
-        $process->setTimeout(null); //No timeout
-        $process->run();
-        if (!$process->isSuccessful()) {
-            throw new \RuntimeException($process->getErrorOutput());
-        }
+        $this->runProcess($ffmpegCommand);
     }
 
     private function imageCreate($width, $height, $margin, $textBlock, $videoID, $videoName, $imageNumber)
@@ -344,13 +363,7 @@ class VideoController extends Controller
             $videoChunkOutputPath,
         ];
 
-        $process = new Process($ffmpegCommand);
-        $process->setTimeout(null); //No timeout
-        $process->run();
-
-        if (!$process->isSuccessful()) {
-            throw new \RuntimeException($process->getErrorOutput());
-        }
+        $this->runProcess($ffmpegCommand);
 
         $iteration++;
 
@@ -404,22 +417,76 @@ class VideoController extends Controller
             $videoOutput,
         ];
 
-        $process = new Process($ffmpegCommand);
-        $process->setTimeout(null); //No timeout
-        $process->run();
+        $this->runProcess($ffmpegCommand);
+    }
 
-        if (!$process->isSuccessful()) {
-            throw new \RuntimeException($process->getErrorOutput());
-        }
+    private function fixAudio($videoID, $videoName, $videoFileExtension)
+    {
+        $fullVideoName = "$videoName.$videoFileExtension";
+        $originalVideoPath = storage_path("/app/videos/new/$videoID/$fullVideoName");
+        $translatedVideoPath = storage_path('app/videos/completed/' . $videoID . '/' . $videoName . '_translated.' . $videoFileExtension);
+        $translatedVideoPathWithAudioFixPath = storage_path('app/videos/completed/' . $videoID . '/' . $videoName . '_translated_audio_fixed.' . $videoFileExtension);
+
+        $audioFormat = $this->recognizeAudioFormat($originalVideoPath, $videoID, $fullVideoName);
+
+        $extractedAudioPath = storage_path('app/audio/processing/' . $videoID . '/' . $videoName . '_audio.' . $audioFormat);
+        $this->extractAudio($originalVideoPath, $extractedAudioPath, $audioFormat);
+
+        $ffmpegCommand = [
+            env('FFMPEG_BINARIES'),
+            '-y', // -y option for overwrite
+            '-i', $translatedVideoPath,
+            '-i', $extractedAudioPath,
+            '-c:v', 'copy',
+            '-map', '0:v:0',
+            '-map', '1:a:0',
+            $translatedVideoPathWithAudioFixPath,
+        ];
+
+        $this->runProcess($ffmpegCommand);
+    }
+
+    private function recognizeAudioFormat($originalVideoPath)
+    {
+        $ffprobeCommand = [
+            env('FFPROBE_BINARIES'),
+            '-v', 'error',
+            '-select_streams', 'a:0',
+            '-show_entries', 'stream=codec_name',
+            '-of', 'default=nokey=1:noprint_wrappers=1',
+            $originalVideoPath,
+        ];
+
+        $processOutput = $this->runProcess($ffprobeCommand);
+
+        $audioFormat = trim($processOutput);
+
+        return $audioFormat;
+    }
+
+    private function extractAudio($originalVideoPath, $extractedAudioPath, $audioFormat)
+    {
+        $ffmpegCommand = [
+            env('FFMPEG_BINARIES'),
+            '-y', // -y option for overwrite
+            '-i', $originalVideoPath,
+            '-vn', '-acodec',
+            'copy',
+            '-f', $audioFormat,
+            $extractedAudioPath,
+        ];
+
+        $this->runProcess($ffmpegCommand);
     }
 
     private function cleanUp($videoID, $videoName, $imageNumber)
     {
         // Folders to cleanup
         $folders = [
+            storage_path("app/audio/processing/$videoID"),
             storage_path("app/images/processing/$videoID"),
             storage_path("app/output/$videoID"),
-            // storage_path("app/videos/processing/$videoID"), //TO DO remove comment
+            // storage_path("app/videos/processing/$videoID"), //TO DO uncomment
         ];
 
         // Delete folders
