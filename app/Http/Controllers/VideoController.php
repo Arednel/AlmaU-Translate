@@ -34,12 +34,15 @@ class VideoController extends Controller
         $this->createTxtFile($videoID, $videoName);
 
         // Divide video to one second parts
+        // TO DO remove comment
         // $this->divideVideoToChunks($videoPathFull, $videoID, $videoName);
 
         // Get video duration
         $videoDuration = $this->getVideoDuration($videoPathFull);
 
         $margin = 7; //margin to add to text box (extra width and height)
+
+        $previousTextBlocks = [];
 
         // For each second take screenshot and process it via Tesseract (except last second, this is fix)
         for ($imageNumber = 0; $imageNumber < $videoDuration - 1; $imageNumber++) {
@@ -55,12 +58,30 @@ class VideoController extends Controller
 
             $iteration = 0;
             foreach ($textBlocks as $key => $value) {
+                $textChanged = false;
+                // Check if text was changed
+                if (
+                    $imageNumber > 0
+                ) {
+                    if (array_key_exists($key, $previousTextBlocks)) {
+                        $textChanged = $this->checkIfTextChanged($previousTextBlocks[$key], $textBlocks[$key]);
+                    }
+                }
 
-                // Translate text
-                // TO DO Disabled for now, translate only if text changed
-                // $translatedText = $this->translateText($value['text']);
-                // $textBlocks[$key]['translatedText'] = $translatedText;
-                $textBlocks[$key]['translatedText'] = $value['text'];
+                // Translate first image, if text changed or if text not existed before
+                if (
+                    $textChanged
+                    || $imageNumber == 0
+                    || !(array_key_exists($key, $previousTextBlocks))
+                ) {
+                    // TO DO Enable
+                    // Translate text
+                    // $translatedText = $this->translateText($value['text']);
+                    // $textBlocks[$key]['translatedText'] = $translatedText;
+                    $textBlocks[$key]['translatedText'] = $value['text'];
+                } else {
+                    $textBlocks[$key]['translatedText'] = $previousTextBlocks[$key]['translatedText'];
+                }
 
                 $lineWidth = $textBlocks[$key]['leftEnd'] - $textBlocks[$key]['leftStart'];
                 $lineHeight = $value['topEnd'] - $value['topStart'];
@@ -80,6 +101,8 @@ class VideoController extends Controller
                     $iteration
                 );
             }
+
+            $previousTextBlocks = $textBlocks;
 
             // Check if there was any text
             if ($iteration != 0) {
@@ -177,6 +200,15 @@ class VideoController extends Controller
         ];
 
         $this->runProcess($ffmpegCommand);
+    }
+
+    private function checkIfTextChanged($previousTextBlocks, $textBlock)
+    {
+        if ($previousTextBlocks['text'] == $textBlock['text']) {
+            return false;
+        }
+
+        return true;
     }
 
     private function imageCreate($width, $height, $margin, $textBlock, $videoID, $videoName, $imageNumber)
