@@ -4,6 +4,7 @@
     1. pytesseract
     2. cv2 (opencv-python)
 3. FFmpeg in path / globally
+4. Tesseract in path
 
 ## Installation process
 
