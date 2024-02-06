@@ -19,6 +19,8 @@ class VideoController extends Controller
 {
     public function processVideo()
     {
+        $startTime = hrtime(true);
+
         $videoName = '2';
         $videoFileExtension = 'mkv';
         $videoID = 10;
@@ -62,7 +64,11 @@ class VideoController extends Controller
         // Cleanup
         $this->cleanUp($videoID, $videoName, $imageNumber);
 
-        dd('Processing completed', $previousTextBlocks);
+        // Calculate elapsed time
+        $endTime = hrtime(true);
+        $elapsedTime = ($endTime - $startTime) / 1e9; // Convert nanoseconds to seconds
+
+        dd("Processing completed in $elapsedTime seconds", $previousTextBlocks,);
     }
 
     private function createFolders($videoID)
@@ -421,13 +427,13 @@ class VideoController extends Controller
     {
         // If video already edited, then edit further
         if ($iteration == 0) {
-            $videoChunkInputPath = storage_path('app/videos/processing/' . $videoID . "/" . $videoName . "_part_" . $imageNumber . '.mp4');
+            $videoChunkInputPath = storage_path('app/videos/processing/' . $videoID . '/' . $videoName . '_part_' . $imageNumber . '.mp4');
         } else {
-            $videoChunkInputPath = storage_path('app/videos/processing/' . $videoID . "/" . $videoName . "_part_" . $imageNumber . '_translated_iteration_' . $iteration - 1 . '.mp4');
+            $videoChunkInputPath = storage_path('app/videos/processing/' . $videoID . '/' . $videoName . '_part_' . $imageNumber . '_translated_iteration_' . $iteration - 1 . '.mp4');
         }
 
-        $image = storage_path('app/images/processing/' . $videoID . "/" . $videoName . "_" . $imageNumber . '_translated.png');
-        $videoChunkOutputPath = storage_path('app/videos/processing/' . $videoID . "/" . $videoName . "_part_" . $imageNumber . '_translated_iteration_' . $iteration . '.mp4');
+        $image = storage_path('app/images/processing/' . $videoID . '/' . $videoName . '_' . $imageNumber . '_translated.png');
+        $videoChunkOutputPath = storage_path('app/videos/processing/' . $videoID . '/' . $videoName . '_part_' . $imageNumber . '_translated_iteration_' . $iteration . '.mp4');
 
         $ffmpegCommand = [
             env('FFMPEG_BINARIES'),
@@ -435,7 +441,8 @@ class VideoController extends Controller
             '-i', $videoChunkInputPath,
             '-i', $image,
             '-filter_complex', "overlay=$leftStart:$topStart",
-            '-preset', 'fast',
+            '-c:v', 'libx264', // Set the video codec explicitly
+            '-preset', 'ultrafast',
             '-c:a', 'copy',
             $videoChunkOutputPath,
         ];

@@ -40,8 +40,8 @@
     <br>
     <a href="/">← На главную</a>
 
-    <p>version 0.6.4.2 / 2024.02.06</p>
-    <p>Text overlay fix</p>
+    <p>version 0.6.5 / 2024.02.06</p>
+    <p>Calculations optimization</p>
 </body>
 
 </html>
