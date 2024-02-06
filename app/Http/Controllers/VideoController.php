@@ -44,12 +44,12 @@ class VideoController extends Controller
         $previousTextBlocks = [];
 
         // For each second take screenshot and process it via Tesseract (except last two seconds, this is fix)
-        for ($imageNumber = 70; $imageNumber < $videoDuration - 2; $imageNumber++) {
+        for ($imageNumber = 0; $imageNumber < $videoDuration - 2; $imageNumber++) {
             // Translate video part and return text blocks
             $previousTextBlocks = $this->translateVideoPart($videoID, $videoName, $fullVideoName, $imageNumber, $previousTextBlocks, $margin);
 
             //TO DO Remove, only for debugging      
-            if ($imageNumber >= 71) {
+            if ($imageNumber >= 0) {
                 break;
             }
         }
@@ -175,7 +175,7 @@ class VideoController extends Controller
 
             $iteration = $this->placeImageOverlay(
                 $value['leftStart'] - $margin,
-                $value['topStart'] - $margin,
+                $value['topStart'] - $margin * 2,
                 $videoID,
                 $videoName,
                 $imageNumber,
@@ -222,7 +222,7 @@ class VideoController extends Controller
 
         $width = $width + $margin * 3;
 
-        $height = $height + $lineHeightCalculated + $margin;
+        $height = $height + $lineHeightCalculated + $margin * 3;
 
         // If calculated height is bigger, use it 
         $calculatedHeight = $this->calculateHeight($textBlock);
