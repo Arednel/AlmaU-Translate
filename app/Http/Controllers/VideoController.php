@@ -25,7 +25,6 @@ class VideoController extends Controller
         $fullVideoName = "$videoName.$videoFileExtension";
 
         $videoPathFull = storage_path("/app/videos/new/$videoID/$fullVideoName");
-        $videoPathShort = "videos/new/$videoID/$fullVideoName";
 
         // Create folders
         $this->createFolders($videoID);
@@ -35,7 +34,7 @@ class VideoController extends Controller
 
         // Divide video to one second parts
         // TO DO remove comment
-        // $this->divideVideoToChunks($videoPathFull, $videoID, $videoName);
+        // $this->divideVideoToParts($videoPathFull, $videoID, $videoName);
 
         // Get video duration
         $videoDuration = $this->getVideoDuration($videoPathFull);
@@ -44,85 +43,15 @@ class VideoController extends Controller
 
         $previousTextBlocks = [];
 
-        // For each second take screenshot and process it via Tesseract (except last second, this is fix)
-        for ($imageNumber = 0; $imageNumber < $videoDuration - 1; $imageNumber++) {
-            FFMpeg::fromDisk('local')
-                ->open($videoPathShort)
-                ->getFrameFromSeconds($imageNumber)
-                ->export()
-                ->toDisk('local')
-                ->save('/images/processing/' . $videoID . '/' . $videoName . '_' . $imageNumber . '.png');
-
-            // Get data from image(text, location, etc.)
-            $textBlocks = TesseractController::getTextFromImage($videoID, $videoName, $imageNumber);
-
-            $iteration = 0;
-            foreach ($textBlocks as $key => $value) {
-                $textChanged = false;
-                // Check if text was changed
-                if (
-                    $imageNumber > 0
-                ) {
-                    if (array_key_exists($key, $previousTextBlocks)) {
-                        $textChanged = $this->checkIfTextChanged($previousTextBlocks[$key], $textBlocks[$key]);
-                    }
-                }
-
-                // Translate first image, if text changed or if text not existed before
-                if (
-                    $textChanged
-                    || $imageNumber == 0
-                    || !(array_key_exists($key, $previousTextBlocks))
-                ) {
-                    // TO DO Enable
-                    // Translate text
-                    // $translatedText = $this->translateText($value['text']);
-                    // $textBlocks[$key]['translatedText'] = $translatedText;
-                    $textBlocks[$key]['translatedText'] = $value['text'];
-                } else {
-                    $textBlocks[$key]['translatedText'] = $previousTextBlocks[$key]['translatedText'];
-                }
-
-                $lineWidth = $textBlocks[$key]['leftEnd'] - $textBlocks[$key]['leftStart'];
-                $lineHeight = $value['topEnd'] - $value['topStart'];
-
-                // Create blank image
-                $this->imageCreate($lineWidth, $lineHeight, $margin, $textBlocks[$key], $videoID, $videoName, $imageNumber);
-
-                $this->addTranslatedTextToImage($textBlocks[$key], $margin, $videoID, $videoName, $imageNumber);
-
-                $iteration = $this->placeImageOverlay(
-                    $value['leftStart'] - $margin,
-                    $value['topStart'] - $margin,
-                    $videoID,
-                    $videoName,
-                    $videoFileExtension,
-                    $imageNumber,
-                    $iteration
-                );
-            }
-
-            $previousTextBlocks = $textBlocks;
-
-            // Check if there was any text
-            if ($iteration != 0) {
-                // This is fix, so valid iteration is writed to txt file
-                $iteration--;
-
-                // Add video path to txt file
-                $this->addToTxtList($videoID, $videoName, $videoFileExtension, $imageNumber, $iteration, true);
-            }
-            // If there in no text to translate
-            else {
-                // Add video path to txt file
-                $this->addToTxtList($videoID, $videoName, $videoFileExtension, $imageNumber, null, false);
-            }
+        // For each second take screenshot and process it via Tesseract (except last two seconds, this is fix)
+        for ($imageNumber = 0; $imageNumber < $videoDuration - 2; $imageNumber++) {
+            // Translate video part and return text blocks
+            $previousTextBlocks = $this->translateVideoPart($videoID, $videoName, $fullVideoName, $imageNumber, $previousTextBlocks, $margin);
 
             //TO DO Remove, only for debugging      
-            if ($imageNumber >= 0) {
+            if ($imageNumber >= 2) {
                 break;
             }
-            // dd($textBlocks);
         }
 
         $this->mergeVideoParts($videoID, $videoName, $videoFileExtension);
@@ -133,7 +62,7 @@ class VideoController extends Controller
         // Cleanup
         $this->cleanUp($videoID, $videoName, $imageNumber);
 
-        dd('Processing completed', $textBlocks);
+        dd('Processing completed', $previousTextBlocks);
     }
 
     private function createFolders($videoID)
@@ -168,6 +97,22 @@ class VideoController extends Controller
         return $process->getOutput();
     }
 
+    private function divideVideoToParts($videoPathFull, $videoID, $videoName)
+    {
+        $ffmpegCommand = [
+            env('FFMPEG_BINARIES'),
+            '-i', $videoPathFull,
+            '-map', '0',
+            '-force_key_frames', 'expr:gte(t,n_forced*1)',
+            '-f', 'segment',
+            '-segment_time', '1',
+            '-reset_timestamps', '1',
+            storage_path("/app/videos/processing/$videoID/"  . $videoName . '_part_%d.mp4'),
+        ];
+
+        $this->runProcess($ffmpegCommand);
+    }
+
     private function getVideoDuration($videoPathFull)
     {
         $ffprobe = FFProbe::create();
@@ -182,24 +127,81 @@ class VideoController extends Controller
         return $videoDuration;
     }
 
-    private function divideVideoToChunks($videoPathFull, $videoID, $videoName)
+    private function translateVideoPart($videoID, $videoName, $fullVideoName, $imageNumber, $previousTextBlocks, $margin)
     {
-        $ffmpegCommand = [
-            env('FFMPEG_BINARIES'),
-            '-i', $videoPathFull,
-            '-c:v', 'libx264',
-            '-c:a', 'aac',
-            '-strict', 'experimental',
-            '-b:a', '192k',
-            '-force_key_frames', 'expr:gte(t,n_forced*1)',
-            '-f', 'segment',
-            '-segment_time', '1',
-            '-reset_timestamps', '1',
-            '-map', '0',
-            storage_path("/app/videos/processing/$videoID/"  . $videoName . '_part_%d.mkv'),
-        ];
+        FFMpeg::fromDisk('local')
+            ->open("videos/new/$videoID/$fullVideoName")
+            ->getFrameFromSeconds($imageNumber)
+            ->export()
+            ->toDisk('local')
+            ->save('/images/processing/' . $videoID . '/' . $videoName . '_' . $imageNumber . '.png');
 
-        $this->runProcess($ffmpegCommand);
+        // Get data from image(text, location, etc.)
+        $textBlocks = TesseractController::getTextFromImage($videoID, $videoName, $imageNumber);
+
+        $iteration = 0;
+        foreach ($textBlocks as $key => $value) {
+            $textChanged = false;
+            // Check if text was changed
+            if (
+                $imageNumber > 0
+            ) {
+                if (array_key_exists($key, $previousTextBlocks)) {
+                    $textChanged = $this->checkIfTextChanged($previousTextBlocks[$key], $textBlocks[$key]);
+                }
+            }
+
+            // Translate first image, if text changed or if text not existed before
+            if (
+                $textChanged
+                || $imageNumber == 0
+                || !(array_key_exists($key, $previousTextBlocks))
+            ) {
+                // Translate text
+                $translatedText = $this->translateText($value['text']);
+                $textBlocks[$key]['translatedText'] = $translatedText;
+                // $textBlocks[$key]['translatedText'] = $value['text'];
+            } else {
+                $textBlocks[$key]['translatedText'] = $previousTextBlocks[$key]['translatedText'];
+            }
+
+            $lineWidth = $textBlocks[$key]['leftEnd'] - $textBlocks[$key]['leftStart'];
+            $lineHeight = $value['topEnd'] - $value['topStart'];
+
+            // Create blank image
+            $this->imageCreate($lineWidth, $lineHeight, $margin, $textBlocks[$key], $videoID, $videoName, $imageNumber);
+
+            $this->addTranslatedTextToImage($textBlocks[$key], $margin, $videoID, $videoName, $imageNumber);
+
+            $iteration = $this->placeImageOverlay(
+                $value['leftStart'] - $margin,
+                $value['topStart'] - $margin,
+                $videoID,
+                $videoName,
+                $imageNumber,
+                $iteration
+            );
+        }
+
+        $previousTextBlocks = $textBlocks;
+
+        // Check if there was any text
+        if ($iteration != 0) {
+            // This is fix, so valid iteration number is writed to txt file
+            $iteration--;
+
+            // Add video path to txt file
+            $this->addToTxtList($videoID, $videoName,  $imageNumber, $iteration, true);
+        }
+        // If there in no text to translate
+        else {
+            // Add video path to txt file
+            $this->addToTxtList($videoID, $videoName,  $imageNumber, null, false);
+        }
+
+        $previousTextBlocks = $textBlocks;
+
+        return $previousTextBlocks;
     }
 
     private function checkIfTextChanged($previousTextBlocks, $textBlock)
@@ -372,17 +374,17 @@ class VideoController extends Controller
         return $lines[$i];
     }
 
-    private function placeImageOverlay($leftStart, $topStart, $videoID, $videoName, $videoFileExtension, $imageNumber, $iteration)
+    private function placeImageOverlay($leftStart, $topStart, $videoID, $videoName,  $imageNumber, $iteration)
     {
         // If video already edited, then edit further
         if ($iteration == 0) {
-            $videoChunkInputPath = storage_path('app/videos/processing/' . $videoID . "/" . $videoName . "_part_" . $imageNumber . '.' . $videoFileExtension);
+            $videoChunkInputPath = storage_path('app/videos/processing/' . $videoID . "/" . $videoName . "_part_" . $imageNumber . '.mp4');
         } else {
-            $videoChunkInputPath = storage_path('app/videos/processing/' . $videoID . "/" . $videoName . "_part_" . $imageNumber . '_translated_iteration_' . $iteration - 1 . "." . $videoFileExtension);
+            $videoChunkInputPath = storage_path('app/videos/processing/' . $videoID . "/" . $videoName . "_part_" . $imageNumber . '_translated_iteration_' . $iteration - 1 . '.mp4');
         }
 
         $image = storage_path('app/images/processing/' . $videoID . "/" . $videoName . "_" . $imageNumber . '_translated.png');
-        $videoChunkOutputPath = storage_path('app/videos/processing/' . $videoID . "/" . $videoName . "_part_" . $imageNumber . '_translated_iteration_' . $iteration . "." . $videoFileExtension);
+        $videoChunkOutputPath = storage_path('app/videos/processing/' . $videoID . "/" . $videoName . "_part_" . $imageNumber . '_translated_iteration_' . $iteration . '.mp4');
 
         $ffmpegCommand = [
             env('FFMPEG_BINARIES'),
@@ -413,17 +415,17 @@ class VideoController extends Controller
         Storage::disk('local')->put($fileFullPath, $contents);
     }
 
-    private function addToTxtList($videoID, $videoName, $videoFileExtension, $imageNumber, $iteration, $mergeTranslatedPart)
+    private function addToTxtList($videoID, $videoName,  $imageNumber, $iteration, $mergeTranslatedPart)
     {
         $fileName = $videoName . '_video_parts_list.txt';
         $fileFullPath = "output/$videoID/$fileName";
 
         if ($mergeTranslatedPart) {
-            $videoName = storage_path('app/videos/processing/' . $videoID . '/' . $videoName . '_part_' . $imageNumber . '_translated_iteration_' . $iteration . '.' . $videoFileExtension);
+            $videoName = storage_path('app/videos/processing/' . $videoID . '/' . $videoName . '_part_' . $imageNumber . '_translated_iteration_' . $iteration . '.mp4');
         }
         // If there was no text to translate
         else {
-            $videoName = storage_path('app/videos/processing/' . $videoID . '/' . $videoName . '_part_' . $imageNumber . '.' . $videoFileExtension);
+            $videoName = storage_path('app/videos/processing/' . $videoID . '/' . $videoName . '_part_' . $imageNumber . '.mp4');
         }
 
         $contents = "file '$videoName'";
@@ -432,12 +434,12 @@ class VideoController extends Controller
         Storage::disk('local')->append($fileFullPath, $contents);
     }
 
-    private function mergeVideoParts($videoID, $videoName, $videoFileExtension)
+    private function mergeVideoParts($videoID, $videoName)
     {
         $fileName = $videoName . '_video_parts_list.txt';
         $fileFullPath = base_path("storage/app/output/$videoID/$fileName");
 
-        $videoOutput = storage_path('app/videos/completed/' . $videoID . "/" . $videoName . "_translated." . $videoFileExtension);
+        $videoOutput = storage_path('app/videos/completed/' . $videoID . "/" . $videoName . '_translated.mp4');
 
         $ffmpegCommand = [
             env('FFMPEG_BINARIES'),
@@ -456,8 +458,8 @@ class VideoController extends Controller
     {
         $fullVideoName = "$videoName.$videoFileExtension";
         $originalVideoPath = storage_path("/app/videos/new/$videoID/$fullVideoName");
-        $translatedVideoPath = storage_path('app/videos/completed/' . $videoID . '/' . $videoName . '_translated.' . $videoFileExtension);
-        $translatedVideoPathWithAudioFixPath = storage_path('app/videos/completed/' . $videoID . '/' . $videoName . '_translated_audio_fixed.' . $videoFileExtension);
+        $translatedVideoPath = storage_path('app/videos/completed/' . $videoID . '/' . $videoName . '_translated.mp4');
+        $translatedVideoPathWithAudioFixPath = storage_path('app/videos/completed/' . $videoID . '/' . $videoName . '_translated_audio_fixed.mp4');
 
         $audioFormat = $this->recognizeAudioFormat($originalVideoPath, $videoID, $fullVideoName);
 
