@@ -44,12 +44,12 @@ class VideoController extends Controller
         $previousTextBlocks = [];
 
         // For each second take screenshot and process it via Tesseract (except last two seconds, this is fix)
-        for ($imageNumber = 0; $imageNumber < $videoDuration - 2; $imageNumber++) {
+        for ($imageNumber = 70; $imageNumber < $videoDuration - 2; $imageNumber++) {
             // Translate video part and return text blocks
             $previousTextBlocks = $this->translateVideoPart($videoID, $videoName, $fullVideoName, $imageNumber, $previousTextBlocks, $margin);
 
             //TO DO Remove, only for debugging      
-            if ($imageNumber >= 2) {
+            if ($imageNumber >= 71) {
                 break;
             }
         }
@@ -289,8 +289,51 @@ class VideoController extends Controller
         // Access the translated text
         $translatedText = $responseData['data']['translations'][0]['translatedText'];
 
+        // Fix characters like &gt; = >
+        $translatedText = $this->fixSpecialCharacters($translatedText);
+
         // Output the translated text
         return $translatedText;
+    }
+
+    private function fixSpecialCharacters($text)
+    {
+        $specialCharacters = [
+            '&gt;'    => '>',
+            '&lt;'    => '<',
+            '&amp;'   => '&',
+            '&quot;'  => '"',
+            '&apos;'  => "'",
+            '&nbsp;'  => ' ',
+            '&copy;'  => '©',
+            '&reg;'   => '®',
+            '&trade;' => '™',
+            '&euro;'  => '€',
+            '&cent;'  => '¢',
+            '&pound;' => '£',
+            '&yen;'   => '¥',
+            '&sect;'  => '§',
+            '&deg;'   => '°',
+            '&plusmn;' => '±',
+            '&micro;' => 'µ',
+            '&para;'  => '¶',
+            '&middot;' => '·',
+            '&raquo;' => '»',
+            '&laquo;' => '«',
+            '&mdash;' => '—',
+            '&ndash;' => '–',
+            '&frac14;' => '¼',
+            '&frac12;' => '½',
+            '&frac34;' => '¾',
+            '&times;'  => '×',
+            '&divide;' => '÷',
+        ];
+
+        foreach ($specialCharacters as $characters => $replaceWith) {
+            $text = str_replace($characters, $replaceWith, $text);
+        }
+
+        return $text;
     }
 
     private function addTranslatedTextToImage($textBlock, $margin, $videoID, $videoName, $imageNumber)

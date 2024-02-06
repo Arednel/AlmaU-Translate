@@ -40,8 +40,8 @@
     <br>
     <a href="/">← На главную</a>
 
-    <p>version 0.6.4 / 2024.02.06</p>
-    <p>Fixes</p>
+    <p>version 0.6.4.1 / 2024.02.06</p>
+    <p>Special characters fix</p>
 </body>
 
 </html>
