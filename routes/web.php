@@ -1,7 +1,10 @@
 <?php
 
-use App\Http\Controllers\videoController;
 use Illuminate\Support\Facades\Route;
+
+use TCG\Voyager\Facades\Voyager;
+
+use App\Http\Controllers\VideoController;
 
 /*
 |--------------------------------------------------------------------------
@@ -14,10 +17,15 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-//Main page
-Route::view('/', 'Index');
-Route::view('/Index', 'Index');
-Route::view('/index', 'Index');
+//Voyager admin panel
+Route::group(['prefix' => 'admin'], function () {
+    Voyager::routes();
+});
+
+//Redirects to voyager admin panel
+Route::redirect('/', '/admin');
+Route::redirect('/Index', '/admin');
+Route::redirect('/index', '/admin');
 
 //Info page 
 Route::view('/Info', 'Info');
