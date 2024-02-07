@@ -40,8 +40,8 @@
     <br>
     <a href="/">← На главную</a>
 
-    <p>version 0.6.5 / 2024.02.06</p>
-    <p>Calculations optimization</p>
+    <p>version 0.6.5.1 / 2024.02.07</p>
+    <p>Downgrade from Intervention v3 to v2</p>
 </body>
 
 </html>

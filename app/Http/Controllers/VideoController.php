@@ -7,13 +7,12 @@ use GuzzleHttp\Client;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\File;
 
-use Intervention\Image\ImageManager;
-use Intervention\Image\Drivers\Gd\Driver;
+use Intervention\Image\Facades\Image;
+
+use Symfony\Component\Process\Process;
 
 use ProtoneMedia\LaravelFFMpeg\FFMpeg\FFProbe;
 use ProtoneMedia\LaravelFFMpeg\Support\FFMpeg;
-
-use Symfony\Component\Process\Process;
 
 class VideoController extends Controller
 {
@@ -355,11 +354,8 @@ class VideoController extends Controller
 
         $fontFile = public_path('fonts/Charis-SIL/CharisSILB.ttf');
 
-        // Create imageManager
-        $manager = new ImageManager(new Driver());
-
         // read image from file system
-        $image = $manager->read(base_path('storage/app/' . $inputPath));
+        $image = Image::make(base_path('storage/app/' . $inputPath));
 
         // Translated text
         $text = $textBlock['translatedText'];
@@ -396,7 +392,7 @@ class VideoController extends Controller
                 function ($font) use ($fontSize, $fontFile) {
                     $font->file($fontFile);
                     $font->size($fontSize);
-                    $font->color('black');
+                    $font->color(0, 0, 0);
                 }
             );
         }
