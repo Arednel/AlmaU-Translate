@@ -11,4 +11,6 @@
 1. composer install
 2. php artisan key:generate
 3. php artisan voyager:install
-4. php artisan voyager:admin admin@admin.com --create
+4. php artisan db:seed --class=VideosBreadSeeder
+5. php artisan db:seed --class=BreadPermissionsSeeder
+6. php artisan voyager:admin admin@admin.com --create

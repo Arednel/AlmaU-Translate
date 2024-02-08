@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "27faabf07f618b43bf5628d42535c02a",
+    "content-hash": "81e2522dea6d4ae2972caf7346f3e444",
     "packages": [
         {
             "name": "arrilot/laravel-widgets",
@@ -73,6 +73,61 @@
                 "source": "https://github.com/arrilot/laravel-widgets/tree/3.14.0"
             },
             "time": "2023-11-19T18:27:27+00:00"
+        },
+        {
+            "name": "bleuren/voyager-bread-generator",
+            "version": "1.1.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/pleuren/voyager-bread-generator.git",
+                "reference": "b70bbde34113a6dad8408c1241d14a687b0b0f81"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/pleuren/voyager-bread-generator/zipball/b70bbde34113a6dad8408c1241d14a687b0b0f81",
+                "reference": "b70bbde34113a6dad8408c1241d14a687b0b0f81",
+                "shasum": ""
+            },
+            "require": {
+                "tcg/voyager": "^1.0"
+            },
+            "require-dev": {
+                "larapack/hooks": "~1.0",
+                "laravel/laravel": "^8.0"
+            },
+            "type": "library",
+            "extra": {
+                "hook": {
+                    "providers": [
+                        "VoyagerBread\\BreadGeneratorServiceProvider"
+                    ]
+                },
+                "laravel": {
+                    "providers": [
+                        "VoyagerBread\\BreadGeneratorServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "VoyagerBread\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Bleu Ren",
+                    "email": "bleuren@hotmail.com"
+                }
+            ],
+            "description": "Create BREAD from the console using artisan",
+            "support": {
+                "source": "https://github.com/pleuren/voyager-bread-generator/tree/1.1.0"
+            },
+            "time": "2021-06-19T03:14:50+00:00"
         },
         {
             "name": "brick/math",

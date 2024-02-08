@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 
 use TCG\Voyager\Facades\Voyager;
 
+use App\Http\Controllers\VideoProcessingController;
 use App\Http\Controllers\VideoController;
 
 /*
@@ -20,6 +21,9 @@ use App\Http\Controllers\VideoController;
 //Voyager admin panel
 Route::group(['prefix' => 'admin'], function () {
     Voyager::routes();
+
+    // Custom videos store logic
+    Route::post('/videos', [VideoController::class, 'store'])->name('voyager.videos.store');
 });
 
 //Redirects to voyager admin panel
@@ -31,4 +35,4 @@ Route::redirect('/index', '/admin');
 Route::view('/Info', 'Info');
 Route::view('/info', 'Info');
 
-Route::get('processVideo', [VideoController::class, 'processVideo']);
+Route::get('processVideo', [VideoProcessingController::class, 'processVideo']);

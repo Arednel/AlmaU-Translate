@@ -40,8 +40,8 @@
     <br>
     <a href="/">← На главную</a>
 
-    <p>version 0.6.5.2 / 2024.02.07</p>
-    <p>Added Voyager</p>
+    <p>version 0.6.6 / 2024.02.08</p>
+    <p>Custom Voyager controller and view</p>
 </body>
 
 </html>
