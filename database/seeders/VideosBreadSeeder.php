@@ -46,20 +46,7 @@ class VideosBreadSeeder extends Seeder
                 'details'      => '',
                 'order'        => 1,
             ],
-            // First acts as input, then replaced with path
-            'video_path' => [
-                'type'         => 'File',
-                'display_name' => 'Видеофайл',
-                'required'     => 1,
-                'browse'       => 1,
-                'read'         => 1,
-                'edit'         => 0,
-                'add'          => 1,
-                'delete'       => 0,
-                'details'      => '',
-                'order'        => 2,
-            ],
-            'video_name' => [
+            'name' => [
                 'type'         => 'text',
                 'display_name' => 'Название видео',
                 'required'     => 0,

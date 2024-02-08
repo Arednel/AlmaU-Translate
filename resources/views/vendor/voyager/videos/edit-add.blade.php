@@ -43,13 +43,12 @@
                         <div class="panel-body">
                             <div class="form-group">
                                 <label for="video_url">Ссылка на видео</label>
-                                <input type="text" class="form-control" id="video_url" name="video_url"
-                                    placeholder="Ссылка на видео" value="">
+                                <input type="text" class="form-control" id="video_url" name="video_url">
                             </div>
 
                             <div class="form-group">
                                 <label for="video_file">Видеофайл</label>
-                                <input type="file" data-name="video_file" name="video_file">
+                                <input type="file" name="video_file">
                             </div>
                         </div>
 
