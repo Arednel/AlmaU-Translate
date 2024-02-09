@@ -60,7 +60,7 @@ class VideoProcessingController extends Controller
             // Translate video part and return text blocks
             $previousTextBlocks = $this->translateVideoPart($videoID, $videoName, $videoNameWithExtension, $imageNumber, $previousTextBlocks, $margin);
 
-            $video->current_progress = intval(($imageNumber + 1) / ($videoDuration - 2)) * 0.9 + 5;
+            $video->current_progress = intval((($imageNumber + 1) / ($videoDuration - 2)) * 90) + 5;
             $video->save();
 
             //TO DO Remove, only for debugging      
@@ -71,7 +71,7 @@ class VideoProcessingController extends Controller
 
         $this->mergeVideoParts($videoID, $videoName, $videoFileExtension);
 
-        $currentProgress = 95;
+        $video->current_progress = 95;
         $video->save();
 
         // Place original audio track
