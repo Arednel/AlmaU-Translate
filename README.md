@@ -14,3 +14,8 @@
 4. php artisan db:seed --class=VideosBreadSeeder
 5. php artisan db:seed --class=BreadPermissionsSeeder
 6. php artisan voyager:admin admin@admin.com --create
+
+## Using
+
+### run background jobs queue (should always be running for translation)
+1. php artisan queue:listen

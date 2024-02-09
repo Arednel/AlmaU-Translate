@@ -9,14 +9,7 @@ from pytesseract import Output
 videoID = sys.argv[1]
 videoName = sys.argv[2]
 imageNumber = sys.argv[3]
- 
-# Get current directory (Project/python)
-currentDir = os.getcwd()
-
-# Get the parent directory (one level up)
-parentDir = os.path.abspath(os.path.join(currentDir, os.pardir))
-
-storageDir = parentDir + "\\storage\\app\\"
+storageDir = sys.argv[4]
 
 img = cv2.imread(storageDir + "images\\processing\\" + videoID + "\\" + videoName + "_" + imageNumber + ".png")
 

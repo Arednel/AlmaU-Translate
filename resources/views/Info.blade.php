@@ -40,8 +40,8 @@
     <br>
     <a href="/">← На главную</a>
 
-    <p>version 0.6.7 / 2024.02.08</p>
-    <p>Video upload</p>
+    <p>version 0.7.0 / 2024.02.09</p>
+    <p>Background translation job</p>
 </body>
 
 </html>

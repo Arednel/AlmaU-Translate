@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use GuzzleHttp\Client;
+use GuzzleHttp\RequestOptions;
 
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\File;
@@ -14,18 +15,26 @@ use Symfony\Component\Process\Process;
 use ProtoneMedia\LaravelFFMpeg\FFMpeg\FFProbe;
 use ProtoneMedia\LaravelFFMpeg\Support\FFMpeg;
 
+use App\Models\Video;
+
 class VideoProcessingController extends Controller
 {
-    public function processVideo()
+    public function processVideo($videoID, $videoNameWithExtension)
     {
         $startTime = hrtime(true);
 
-        $videoName = '2';
-        $videoFileExtension = 'mkv';
-        $videoID = 10;
-        $fullVideoName = "$videoName.$videoFileExtension";
+        // Set video status to being processed
+        $video = Video::find($videoID);
+        $video->is_processing = 1;
+        $video->save();
 
-        $videoPathFull = storage_path("/app/videos/new/$videoID/$fullVideoName");
+        $videoPathFull = storage_path("/app/videos/new/$videoID/$videoNameWithExtension");
+
+        // Get file name
+        $videoName = pathinfo($videoPathFull, PATHINFO_FILENAME);
+
+        // Get file extension
+        $videoFileExtension = pathinfo($videoPathFull, PATHINFO_EXTENSION);
 
         // Create folders
         $this->createFolders($videoID);
@@ -34,8 +43,10 @@ class VideoProcessingController extends Controller
         $this->createTxtFile($videoID, $videoName);
 
         // Divide video to one second parts
-        // TO DO remove comment
-        // $this->divideVideoToParts($videoPathFull, $videoID, $videoName);
+        $this->divideVideoToParts($videoPathFull, $videoID, $videoName);
+
+        $video->current_progress = 5;
+        $video->save();
 
         // Get video duration
         $videoDuration = $this->getVideoDuration($videoPathFull);
@@ -47,7 +58,10 @@ class VideoProcessingController extends Controller
         // For each second take screenshot and process it via Tesseract (except last two seconds, this is fix)
         for ($imageNumber = 0; $imageNumber < $videoDuration - 2; $imageNumber++) {
             // Translate video part and return text blocks
-            $previousTextBlocks = $this->translateVideoPart($videoID, $videoName, $fullVideoName, $imageNumber, $previousTextBlocks, $margin);
+            $previousTextBlocks = $this->translateVideoPart($videoID, $videoName, $videoNameWithExtension, $imageNumber, $previousTextBlocks, $margin);
+
+            $video->current_progress = intval(($imageNumber + 1) / ($videoDuration - 2)) * 0.9 + 5;
+            $video->save();
 
             //TO DO Remove, only for debugging      
             if ($imageNumber >= 0) {
@@ -57,17 +71,28 @@ class VideoProcessingController extends Controller
 
         $this->mergeVideoParts($videoID, $videoName, $videoFileExtension);
 
+        $currentProgress = 95;
+        $video->save();
+
         // Place original audio track
         $this->fixAudio($videoID, $videoName, $videoFileExtension);
 
         // Cleanup
         $this->cleanUp($videoID, $videoName, $imageNumber);
 
+        // Set video status to completed
+        $video = Video::find($videoID); //Fix of "Attempt to assign property "is_processing" on null"
+        $video->current_progress = 100;
+        $video->is_processing = 0;
+        $video->is_translated = 1;
+        $video->save();
+
         // Calculate elapsed time
         $endTime = hrtime(true);
         $elapsedTime = ($endTime - $startTime) / 1e9; // Convert nanoseconds to seconds
 
-        dd("Processing completed in $elapsedTime seconds", $previousTextBlocks,);
+        // TO DO Log processing time
+        // dd("Processing completed in $elapsedTime seconds", $previousTextBlocks,);
     }
 
     private function createFolders($videoID)
@@ -120,7 +145,9 @@ class VideoProcessingController extends Controller
 
     private function getVideoDuration($videoPathFull)
     {
-        $ffprobe = FFProbe::create();
+        $ffprobe = FFProbe::create(
+            ['ffprobe.binaries' => env('FFPROBE_BINARIES')]
+        );
 
         $videoDuration = $ffprobe
             ->format($videoPathFull)
@@ -132,10 +159,10 @@ class VideoProcessingController extends Controller
         return $videoDuration;
     }
 
-    private function translateVideoPart($videoID, $videoName, $fullVideoName, $imageNumber, $previousTextBlocks, $margin)
+    private function translateVideoPart($videoID, $videoName, $videoNameWithExtension, $imageNumber, $previousTextBlocks, $margin)
     {
         FFMpeg::fromDisk('local')
-            ->open("videos/new/$videoID/$fullVideoName")
+            ->open("videos/new/$videoID/$videoNameWithExtension")
             ->getFrameFromSeconds($imageNumber)
             ->export()
             ->toDisk('local')
@@ -282,8 +309,10 @@ class VideoProcessingController extends Controller
         // API endpoint URL
         $apiUrl = "https://translation.googleapis.com/language/translate/v2?key={$apiKey}&q={$textToTranslate}&target={$targetLanguage}";
 
-        // Create a Guzzle HTTP client
-        $client = new Client();
+        // Create a Guzzle HTTP client (and disable SSL cert check)
+        $client = new Client([
+            RequestOptions::VERIFY => false
+        ]);
 
         // Make a GET request
         $response = $client->get($apiUrl);
@@ -502,12 +531,12 @@ class VideoProcessingController extends Controller
 
     private function fixAudio($videoID, $videoName, $videoFileExtension)
     {
-        $fullVideoName = "$videoName.$videoFileExtension";
-        $originalVideoPath = storage_path("/app/videos/new/$videoID/$fullVideoName");
+        $videoNameWithExtension = "$videoName.$videoFileExtension";
+        $originalVideoPath = storage_path("/app/videos/new/$videoID/$videoNameWithExtension");
         $translatedVideoPath = storage_path('app/videos/completed/' . $videoID . '/' . $videoName . '_translated.mp4');
         $translatedVideoPathWithAudioFixPath = storage_path('app/videos/completed/' . $videoID . '/' . $videoName . '_translated_audio_fixed.mp4');
 
-        $audioFormat = $this->recognizeAudioFormat($originalVideoPath, $videoID, $fullVideoName);
+        $audioFormat = $this->recognizeAudioFormat($originalVideoPath, $videoID, $videoNameWithExtension);
 
         $extractedAudioPath = storage_path('app/audio/processing/' . $videoID . '/' . $videoName . '_audio.' . $audioFormat);
         $this->extractAudio($originalVideoPath, $extractedAudioPath, $audioFormat);
@@ -566,7 +595,7 @@ class VideoProcessingController extends Controller
             storage_path("app/audio/processing/$videoID"),
             storage_path("app/images/processing/$videoID"),
             storage_path("app/output/$videoID"),
-            // storage_path("app/videos/processing/$videoID"), //TO DO uncomment
+            storage_path("app/videos/processing/$videoID"),
         ];
 
         // Delete folders

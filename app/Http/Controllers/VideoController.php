@@ -8,6 +8,8 @@ use Illuminate\Http\Request;
 
 use App\Models\Video;
 
+use App\Jobs\TranslateVideo;
+
 class VideoController extends VoyagerBaseController
 {
     public function store(Request $request)
@@ -50,7 +52,8 @@ class VideoController extends VoyagerBaseController
         $video->name = $fileName;
         $video->save();
 
-        // TO DO Create job to translate video
+        // Create translate job
+        TranslateVideo::dispatch($videoID, $fileName);
 
         return redirect('admin/videos');
     }
