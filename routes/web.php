@@ -34,5 +34,3 @@ Route::redirect('/index', '/admin');
 //Info page 
 Route::view('/Info', 'Info');
 Route::view('/info', 'Info');
-
-Route::get('processVideo', [VideoProcessingController::class, 'processVideo']);

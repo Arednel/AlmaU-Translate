@@ -40,8 +40,8 @@
     <br>
     <a href="/">← На главную</a>
 
-    <p>version 0.7.0.1 / 2024.02.09</p>
-    <p>Progress status fix</p>
+    <p>version 0.7.0.2 / 2024.02.09</p>
+    <p>Remove route</p>
 </body>
 
 </html>
