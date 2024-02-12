@@ -64,9 +64,9 @@ class VideoProcessingController extends Controller
             $video->save();
 
             //TO DO Remove, only for debugging      
-            if ($imageNumber >= 0) {
-                break;
-            }
+            // if ($imageNumber >= 0) {
+            //     break;
+            // }
         }
 
         $this->mergeVideoParts($videoID, $videoName, $videoFileExtension);

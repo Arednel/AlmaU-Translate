@@ -40,8 +40,8 @@
     <br>
     <a href="/">← На главную</a>
 
-    <p>version 0.7.0.2 / 2024.02.09</p>
-    <p>Remove route</p>
+    <p>version 0.7.1 / 2024.02.10</p>
+    <p>Timeout disable</p>
 </body>
 
 </html>

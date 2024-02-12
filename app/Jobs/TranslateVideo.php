@@ -23,6 +23,8 @@ class TranslateVideo implements ShouldQueue
      * @var int
      */
     public $tries = 3;
+    //pcntl PHP extension must be installed to infinite (0) timeout to work
+    public $timeout = 0;
 
     /**
      * Create a new job instance.
