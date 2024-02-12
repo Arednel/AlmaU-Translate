@@ -6,6 +6,8 @@ use TCG\Voyager\Http\Controllers\VoyagerBaseController;
 
 use Illuminate\Http\Request;
 
+use Illuminate\Support\Facades\File;
+
 use App\Models\Video;
 
 use App\Jobs\TranslateVideo;
@@ -56,5 +58,61 @@ class VideoController extends VoyagerBaseController
         TranslateVideo::dispatch($videoID, $fileName);
 
         return redirect('admin/videos');
+    }
+
+    public function destroy(Request $request, $id)
+    {
+        // Check if user wants delete multiple videos
+        if ($request->input('ids')) {
+            // Remove ',' from input
+            $ids = explode(",", $request->input('ids'));
+
+            // Delete each video
+            foreach ($ids as $id) {
+                $this->deleteVideo($id);
+            }
+        } else {
+            // Delete single video
+            $this->deleteVideo($id);
+        }
+
+        // Redirect user back
+        return redirect('admin/videos');
+    }
+
+    private function deleteVideo($id)
+    {
+        // Find the Video model instance by ID
+        $video = Video::find($id);
+
+        // Check if the video exists
+        if (!$video) {
+            // If the video does not exist, redirect back with an error message
+            return redirect()->back()->withErrors('Video not found');
+        }
+
+        // Delete video from database
+        $video->delete();
+
+        // Remove all video folders
+        $this->removeFolders($video->id);
+    }
+
+    private function removeFolders($videoID)
+    {
+        // Folders to cleanup
+        $folders = [
+            storage_path("app/audio/processing/$videoID"),
+            storage_path("app/images/processing/$videoID"),
+            storage_path("app/output/$videoID"),
+            storage_path("app/videos/completed/$videoID"),
+            storage_path("app/videos/new/$videoID"),
+            storage_path("app/videos/processing/$videoID"),
+        ];
+
+        // Delete folders
+        foreach ($folders as $folderPath) {
+            File::deleteDirectory($folderPath);
+        }
     }
 }

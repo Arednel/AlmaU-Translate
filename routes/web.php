@@ -22,8 +22,14 @@ use App\Http\Controllers\VideoController;
 Route::group(['prefix' => 'admin'], function () {
     Voyager::routes();
 
-    // Custom videos store logic
-    Route::post('/videos', [VideoController::class, 'store'])->name('voyager.videos.store');
+    // Custom video store logic
+    Route::post('/videos', [VideoController::class, 'store'])
+        ->name('voyager.videos.store');
+
+    // Custom video delete logic (for one or multiple videos)
+    Route::delete('/videos/{id}', [VideoController::class, 'destroy'])
+        ->whereNumber('id')
+        ->name('voyager.videos.destroy');
 });
 
 //Redirects to voyager admin panel

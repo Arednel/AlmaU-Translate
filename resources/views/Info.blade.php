@@ -40,8 +40,8 @@
     <br>
     <a href="/">← На главную</a>
 
-    <p>version 0.7.1.1 / 2024.02.12</p>
-    <p>TO DO added</p>
+    <p>version 0.7.2 / 2024.02.12</p>
+    <p>Videos removal logic</p>
 </body>
 
 </html>
