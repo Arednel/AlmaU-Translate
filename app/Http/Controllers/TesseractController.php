@@ -161,7 +161,8 @@ class TesseractController extends Controller
                     // Calculate font size
                     $textBlocks[$key - 1]['fontSize'] = TesseractController::calculateFontSize($textBlocks[$key - 1]);
 
-                    unset($textBlocks[$key]);
+                    //TO DO Fix
+                    // unset($textBlocks[$key]);
                 }
             }
             $previousTextBlock = $textBlock;

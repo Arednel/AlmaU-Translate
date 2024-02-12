@@ -40,8 +40,8 @@
     <br>
     <a href="/">← На главную</a>
 
-    <p>version 0.7.1 / 2024.02.10</p>
-    <p>Timeout disable</p>
+    <p>version 0.7.1.1 / 2024.02.12</p>
+    <p>TO DO added</p>
 </body>
 
 </html>
