@@ -17,7 +17,14 @@
 
 ## Using
 
-### Run background jobs queue (should always be running for translation to work)
-1. php artisan queue:listen --timeout=0
+1. ### Run background jobs queue (should always be running for translation to work)
+
+php artisan queue:listen --timeout=0
+
 #### Or run this instead, if pcntl PHP extension installed
-2. php artisan queue:listen
+
+php artisan queue:listen
+
+2. ### Change permissions
+
+For example, remove ability to edit videos for admin (you probably should, this doesn't work)
