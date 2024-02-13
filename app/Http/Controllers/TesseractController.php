@@ -103,7 +103,7 @@ class TesseractController extends Controller
 
             // If font size is too big
             if ($fontSize > 140) {
-                $fontSize = 15;
+                $fontSize = 5;
                 break;
             }
         }
@@ -143,26 +143,32 @@ class TesseractController extends Controller
                     && $textBlock['topStart'] <= $previousTextBlock['topEnd']
                 ) {
                     // Merge text in text blocks
-                    $textBlocks[$key - 1]['text'] .= ' ' . $textBlocks[$key]['text'];
-
-                    // Set size
-                    $textBlocks[$key - 1]['leftEnd'] = $textBlocks[$key]['leftEnd'];
-                    $textBlocks[$key - 1]['topEnd'] = $textBlocks[$key]['topEnd'];
+                    $textBlocks[$key]['text'] = $previousTextBlock['text'] . ' ' . $textBlock['text'];
 
                     // Calculate amount of lines to add
                     $currentBlockLineHegiht = ($textBlock['topEnd'] - $textBlock['topStart']) / $textBlock['lineNum'];
                     $extraLines = intval(
                         floor(
-                            ($textBlock['topEnd'] - $previousTextBlock['topEnd']) / $currentBlockLineHegiht
+                            ($textBlock['topStart'] - $previousTextBlock['topStart']) / $currentBlockLineHegiht
                         )
                     );
-                    $textBlocks[$key - 1]['lineNum'] += $extraLines;
+                    $textBlocks[$key]['lineNum'] += $extraLines;
+
+                    // Set size
+                    $textBlocks[$key]['leftStart'] = $previousTextBlock['leftStart'];
+                    $textBlocks[$key]['topStart'] = $previousTextBlock['topStart'];
+                    if ($previousTextBlock['leftEnd'] > $textBlock['leftEnd']) {
+                        $textBlocks[$key]['leftEnd'] = $previousTextBlock['leftEnd'];
+                    }
+                    if ($previousTextBlock['topEnd'] > $textBlock['topEnd']) {
+                        $textBlocks[$key]['topEnd'] = $previousTextBlock['topEnd'];
+                    }
 
                     // Calculate font size
-                    $textBlocks[$key - 1]['fontSize'] = TesseractController::calculateFontSize($textBlocks[$key - 1]);
+                    $textBlocks[$key]['fontSize'] = TesseractController::calculateFontSize($textBlocks[$key]);
 
-                    //TO DO Fix
-                    // unset($textBlocks[$key]);
+                    //Remove previous textBlock
+                    unset($textBlocks[$key - 1]);
                 }
             }
             $previousTextBlock = $textBlock;
