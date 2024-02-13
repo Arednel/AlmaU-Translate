@@ -2,15 +2,17 @@
 
 namespace App\Http\Controllers;
 
-use TCG\Voyager\Http\Controllers\VoyagerBaseController;
-
-use Illuminate\Http\Request;
-
-use Illuminate\Support\Facades\File;
-
 use App\Models\Video;
 
 use App\Jobs\TranslateVideo;
+
+use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+
+use Illuminate\Support\Facades\File;
+
+use Illuminate\Support\Facades\Storage;
+use TCG\Voyager\Http\Controllers\VoyagerBaseController;
 
 class VideoController extends VoyagerBaseController
 {
@@ -113,6 +115,30 @@ class VideoController extends VoyagerBaseController
         // Delete folders
         foreach ($folders as $folderPath) {
             File::deleteDirectory($folderPath);
+        }
+    }
+
+    public function translatedView($id)
+    {
+        $video = Video::find($id);
+
+        $videoPathFull = storage_path("/app/videos/new/$id/$video->name");
+
+        // Get file name
+        $videoName = pathinfo($videoPathFull, PATHINFO_FILENAME);
+
+        $path = "videos/completed/$video->id/$videoName" . "_translated_audio_fixed.mp4";
+
+        // Get file name
+        $video = Storage::disk('local')->get($path);
+
+        // If video exists
+        if ($video) {
+            return response($video, 200, [
+                'Content-Type' => 'video/mp4',
+            ]);
+        } else {
+            return redirect('/admin/videos');
         }
     }
 }

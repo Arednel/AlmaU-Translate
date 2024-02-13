@@ -30,6 +30,10 @@ Route::group(['prefix' => 'admin'], function () {
     Route::delete('/videos/{id}', [VideoController::class, 'destroy'])
         ->whereNumber('id')
         ->name('voyager.videos.destroy');
+
+    Route::get('/videos/translated_view/{id}', [VideoController::class, 'translatedView'])
+        ->whereNumber('id')
+        ->name('translated_view');
 });
 
 //Redirects to voyager admin panel

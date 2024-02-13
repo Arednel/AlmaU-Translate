@@ -40,8 +40,8 @@
     <br>
     <a href="/">← На главную</a>
 
-    <p>version 0.7.2.1 / 2024.02.13</p>
-    <p>Merge Videos logic fix</p>
+    <p>version 0.7.2.2 / 2024.02.13</p>
+    <p>View translated video</p>
 </body>
 
 </html>
