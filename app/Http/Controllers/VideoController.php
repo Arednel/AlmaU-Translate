@@ -7,11 +7,11 @@ use App\Models\Video;
 use App\Jobs\TranslateVideo;
 
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
 
 use Illuminate\Support\Facades\File;
-
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
+
 use TCG\Voyager\Http\Controllers\VoyagerBaseController;
 
 class VideoController extends VoyagerBaseController
@@ -92,6 +92,13 @@ class VideoController extends VoyagerBaseController
             // If the video does not exist, redirect back with an error message
             return redirect()->back()->withErrors('Video not found');
         }
+
+        // Log that video is deleted
+        Log::channel('translation')->info(
+            "Video ID: $id \n" .
+                "Video title: $video->name \n" .
+                "Deleting video by user request..."
+        );
 
         // Delete video from database
         $video->delete();

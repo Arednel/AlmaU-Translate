@@ -24,16 +24,17 @@ class VideoProcessingController extends Controller
 
     public function processVideo($videoID, $videoNameWithExtension)
     {
-        // Add text to log later
-        $this->logText .= "Video processing started \n" .
-            "Video ID: $videoID \n";
-
         $startTime = hrtime(true);
 
         // Set video status to being processed
         $video = Video::find($videoID);
         $video->is_processing = 1;
         $video->save();
+
+        // Add text to log later
+        $this->logText .= "Video processing started \n" .
+            "Video ID: $videoID \n" .
+            "Video Title: $video->name \n";
 
         $videoPathFull = storage_path("/app/videos/new/$videoID/$videoNameWithExtension");
 

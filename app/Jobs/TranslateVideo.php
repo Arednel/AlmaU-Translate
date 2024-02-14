@@ -55,7 +55,7 @@ class TranslateVideo implements ShouldQueue
             // Log that video is deleted
             Log::channel('translation')->info(
                 "Video ID: $this->videoID \n" .
-                    "This video is deleted from database by user or error happenned \n" .
+                    "This video is deleted from database by user request or error happenned \n" .
                     "Processing stopped, cleaning up folders"
             );
 
