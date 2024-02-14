@@ -40,8 +40,8 @@
     <br>
     <a href="/">← На главную</a>
 
-    <p>version 0.7.3.2 / 2024.02.14</p>
-    <p>Logging logic change</p>
+    <p>version 0.7.3.3 / 2024.02.14</p>
+    <p>Chrome video rewind fix</p>
 </body>
 
 </html>
