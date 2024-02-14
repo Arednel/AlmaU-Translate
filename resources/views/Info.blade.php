@@ -40,8 +40,8 @@
     <br>
     <a href="/">← На главную</a>
 
-    <p>version 0.7.2.3 / 2024.02.13</p>
-    <p>Videos permissions</p>
+    <p>version 0.7.3 / 2024.02.14</p>
+    <p>Progress logging</p>
 </body>
 
 </html>

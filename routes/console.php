@@ -17,3 +17,16 @@ use Illuminate\Support\Facades\Artisan;
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
+
+Artisan::command('logs:clear', function () {
+    $logs = [
+        'laravel',
+        'translation'
+    ];
+
+    // Clean every log
+    foreach ($logs as $log) {
+        $handle = fopen(storage_path("logs/$log.log"), 'w+');
+        fclose($handle);
+    }
+})->describe('Clear log files');

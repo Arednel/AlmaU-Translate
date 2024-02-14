@@ -7,8 +7,8 @@ use GuzzleHttp\RequestOptions;
 
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\File;
-
 use Intervention\Image\Facades\Image;
+use Illuminate\Support\Facades\Log;
 
 use Symfony\Component\Process\Process;
 
@@ -19,8 +19,15 @@ use App\Models\Video;
 
 class VideoProcessingController extends Controller
 {
+    protected $logText = "";
+    protected $translateApiCalls = 0;
+
     public function processVideo($videoID, $videoNameWithExtension)
     {
+        // Add text to log later
+        $this->logText .= "Video processing started \n" .
+            "Video ID: $videoID \n";
+
         $startTime = hrtime(true);
 
         // Set video status to being processed
@@ -55,7 +62,7 @@ class VideoProcessingController extends Controller
 
         $previousTextBlocks = [];
 
-        // For each second take screenshot and process it via Tesseract (except last two seconds, this is fix)
+        // For each second take screenshot and process it via Tesseract except last two seconds (this is fix)
         for ($imageNumber = 0; $imageNumber < $videoDuration - 2; $imageNumber++) {
             // Translate video part and return text blocks
             $previousTextBlocks = $this->translateVideoPart($videoID, $videoName, $videoNameWithExtension, $imageNumber, $previousTextBlocks, $margin);
@@ -91,8 +98,10 @@ class VideoProcessingController extends Controller
         $endTime = hrtime(true);
         $elapsedTime = ($endTime - $startTime) / 1e9; // Convert nanoseconds to seconds
 
-        // TO DO Log processing time
-        // dd("Processing completed in $elapsedTime seconds", $previousTextBlocks,);
+        // Add text to log later
+        $this->logText .= "Processing completed in: $elapsedTime seconds";
+        // Create log
+        Log::channel('translation')->info($this->logText);
     }
 
     private function createFolders($videoID)
@@ -325,6 +334,13 @@ class VideoProcessingController extends Controller
 
         // Fix characters like &gt; = >
         $translatedText = $this->fixSpecialCharacters($translatedText);
+
+        $this->translateApiCalls++;
+
+        // Add text to log later
+        $this->logText .= "API Call Number: $this->translateApiCalls \n" .
+            "Original text  : $textToTranslate \n" .
+            "Translated text: $translatedText \n";
 
         // Output the translated text
         return $translatedText;

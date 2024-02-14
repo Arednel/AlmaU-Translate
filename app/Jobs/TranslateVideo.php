@@ -11,6 +11,7 @@ use Illuminate\Queue\SerializesModels;
 use DateTime;
 
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
 
 use App\Models\Video;
 
@@ -51,7 +52,12 @@ class TranslateVideo implements ShouldQueue
         if ($video) {
             app()->call('App\Http\Controllers\VideoProcessingController@processVideo', ['videoID' => $this->videoID, 'videoNameWithExtension' => $this->videoNameWithExtension]);
         } else {
-            // TO DO Log that video is deleted
+            // Log that video is deleted
+            Log::channel('translation')->info(
+                "Video ID: $this->videoID \n" .
+                    "This video is deleted from database by user or error happenned \n" .
+                    "Processing stopped, cleaning up folders"
+            );
 
             // Delete folders
             $this->removeFolders();
