@@ -40,8 +40,8 @@
     <br>
     <a href="/">← На главную</a>
 
-    <p>version 0.7.4 / 2024.02.14</p>
-    <p>Video download action</p>
+    <p>version 0.7.4.1 / 2024.02.14</p>
+    <p>Bread custom index page</p>
 </body>
 
 </html>
