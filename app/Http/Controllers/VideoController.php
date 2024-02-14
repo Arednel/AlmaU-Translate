@@ -159,4 +159,44 @@ class VideoController extends VoyagerBaseController
             return redirect('/admin/videos');
         }
     }
+
+    public function translatedDownload($id)
+    {
+        $video = Video::find($id);
+
+        $videoPathFull = storage_path("/app/videos/new/$id/$video->name");
+
+        // Get file name
+        $videoName = pathinfo($videoPathFull, PATHINFO_FILENAME);
+
+        $path = "/videos/completed/$video->id/$videoName" . "_translated_audio_fixed.mp4";
+
+        // Get file name
+        $isVideoExists = Storage::disk('local')->exists($path);
+
+        // If video exists
+        if ($isVideoExists) {
+            // Fix fo chrome browser
+            // Get file size in bytes
+            $size = Storage::size($path);
+            $start = 0;
+            $end = $size - 1;
+            $bytes = $start - $end / $size;
+            $length = $end - $start + 1;
+
+            $headers = [
+                'Content-Type' => 'video/mp4',
+                'Accept-Ranges' => 'bytes',
+                'Content-Range' => "bytes $bytes",
+                "Content-Length" => $length,
+            ];
+
+            // Path to download video from
+            $path = storage_path("/app/videos/completed/$video->id/$videoName" . "_translated_audio_fixed.mp4");
+
+            return response()->download($path, $videoName . '_translated.mp4', $headers);
+        } else {
+            return redirect('/admin/videos');
+        }
+    }
 }

@@ -8,6 +8,7 @@ use Illuminate\Support\ServiceProvider;
 use TCG\Voyager\Facades\Voyager;
 
 use App\Actions\TranslatedVideoView;
+use App\Actions\TranslatedVideoDownload;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -32,5 +33,6 @@ class AppServiceProvider extends ServiceProvider
 
         // Videos actions
         Voyager::addAction(TranslatedVideoView::class);
+        Voyager::addAction(TranslatedVideoDownload::class);
     }
 }

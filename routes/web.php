@@ -36,6 +36,11 @@ Route::group(['prefix' => 'admin'], function () {
         ->whereNumber('id')
         ->name('translated_view')
         ->middleware('auth');
+
+    Route::get('/videos/translated_download/{id}', [VideoController::class, 'translatedDownload'])
+        ->whereNumber('id')
+        ->name('translated_download')
+        ->middleware('auth');
 });
 
 //Redirects to voyager admin panel

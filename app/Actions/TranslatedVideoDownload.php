@@ -4,16 +4,16 @@ namespace App\Actions;
 
 use TCG\Voyager\Actions\AbstractAction;
 
-class TranslatedVideoView extends AbstractAction
+class TranslatedVideoDownload extends AbstractAction
 {
     public function getTitle()
     {
-        return 'Посмотреть видео';
+        return 'Скачать видео';
     }
 
     public function getIcon()
     {
-        return 'voyager-play';
+        return 'voyager-download';
     }
 
     public function getPolicy()
@@ -31,7 +31,7 @@ class TranslatedVideoView extends AbstractAction
 
     public function getDefaultRoute()
     {
-        return route('translated_view', ['id' => $this->data->id]);
+        return route('translated_download', ['id' => $this->data->id]);
     }
 
     public function shouldActionDisplayOnDataType()

@@ -40,8 +40,8 @@
     <br>
     <a href="/">← На главную</a>
 
-    <p>version 0.7.3.5 / 2024.02.14</p>
-    <p>Auth middleware</p>
+    <p>version 0.7.4 / 2024.02.14</p>
+    <p>Video download action</p>
 </body>
 
 </html>
