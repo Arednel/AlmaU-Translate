@@ -188,7 +188,7 @@ class VideoProcessingController extends Controller
                 $imageNumber > 0
             ) {
                 if (array_key_exists($key, $previousTextBlocks)) {
-                    $textChanged = $this->checkIfTextChanged($previousTextBlocks[$key], $textBlocks[$key]);
+                    $textChanged = $this->isTextChanged($previousTextBlocks[$key]['text'], $textBlocks[$key]['text']);
                 }
             }
 
@@ -245,13 +245,14 @@ class VideoProcessingController extends Controller
         return $previousTextBlocks;
     }
 
-    private function checkIfTextChanged($previousTextBlocks, $textBlock)
+    private function isTextChanged($str1, $str2, $percentThreshold = 99)
     {
-        if ($previousTextBlocks['text'] == $textBlock['text']) {
-            return false;
-        }
+        // Check if text changed (to be precise, if text similarity is more 99% or more)
+        similar_text($str1, $str2, $similarity);
 
-        return true;
+        $textChanged = $similarity < $percentThreshold;
+
+        return $textChanged;
     }
 
     private function imageCreate($width, $height, $margin, $textBlock, $videoID, $videoName, $imageNumber)

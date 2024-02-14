@@ -40,8 +40,8 @@
     <br>
     <a href="/">← На главную</a>
 
-    <p>version 0.7.3 / 2024.02.14</p>
-    <p>Progress logging</p>
+    <p>version 0.7.3.1 / 2024.02.14</p>
+    <p>Text similarity check rework</p>
 </body>
 
 </html>
