@@ -4,7 +4,6 @@ use Illuminate\Support\Facades\Route;
 
 use TCG\Voyager\Facades\Voyager;
 
-use App\Http\Controllers\VideoProcessingController;
 use App\Http\Controllers\VideoController;
 
 /*
@@ -24,16 +23,19 @@ Route::group(['prefix' => 'admin'], function () {
 
     // Custom video store logic
     Route::post('/videos', [VideoController::class, 'store'])
-        ->name('voyager.videos.store');
+        ->name('voyager.videos.store')
+        ->middleware('auth');
 
     // Custom video delete logic (for one or multiple videos)
     Route::delete('/videos/{id}', [VideoController::class, 'destroy'])
         ->whereNumber('id')
-        ->name('voyager.videos.destroy');
+        ->name('voyager.videos.destroy')
+        ->middleware('auth');
 
     Route::get('/videos/translated_view/{id}', [VideoController::class, 'translatedView'])
         ->whereNumber('id')
-        ->name('translated_view');
+        ->name('translated_view')
+        ->middleware('auth');
 });
 
 //Redirects to voyager admin panel
