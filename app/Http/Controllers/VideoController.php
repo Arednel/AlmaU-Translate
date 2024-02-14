@@ -139,16 +139,16 @@ class VideoController extends VoyagerBaseController
         // Get file name
         $video = Storage::disk('local')->get($path);
 
-        // Fix fo chrome browser, ability to rewind video
-        // Get file size
-        $size = Storage::size($path);
-        $start = 0;
-        $end = $size - 1;
-        $bytes = $start - $end / $size;
-        $length = $end - $start + 1;
-
         // If video exists
         if ($video) {
+            // Fix fo chrome browser, ability to rewind video
+            // Get file size in bytes
+            $size = Storage::size($path);
+            $start = 0;
+            $end = $size - 1;
+            $bytes = $start - $end / $size;
+            $length = $end - $start + 1;
+
             return response($video, 200, [
                 'Content-Type' => 'video/mp4',
                 'Accept-Ranges' => 'bytes',
