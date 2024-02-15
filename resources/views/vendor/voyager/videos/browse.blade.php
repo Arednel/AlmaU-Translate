@@ -289,6 +289,7 @@
                                                             {{ trans_choice('voyager::media.files', 0) }}
                                                         @endif
                                                     @else
+                                                    {{-- Custom logic for 2 column --}}
                                                         @include('voyager::multilingual.input-hidden-bread-browse')
                                                         <span>{{ $data->{$row->field} }}%</span>
                                                     @endif
