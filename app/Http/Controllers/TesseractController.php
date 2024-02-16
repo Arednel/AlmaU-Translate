@@ -37,7 +37,10 @@ class TesseractController extends Controller
     private static function getTextBlocks($dataArray)
     {
         $textBlocks = [];
-        $previousBlockNum = 0;
+        $textBlockNumber = 0;
+
+        $previousBlockNum = $dataArray['block_num'][0];
+        $previousParNum = $dataArray['par_num'][0];
 
         // Get text as blocks
         foreach ($dataArray['block_num'] as $key => $value) {
@@ -46,37 +49,42 @@ class TesseractController extends Controller
                 $dataArray['text'][$key] != '' &&
                 $dataArray['text'][$key] != ' '
             ) {
-                // Check if it is new block, then set (first) or add to (second) value
-                if (array_key_exists($previousBlockNum, $textBlocks)) {
-                    $textBlocks[$previousBlockNum]['text'] .= ' ' . $dataArray['text'][$key];
-                } else {
-                    $textBlocks[$previousBlockNum]['text'] = $dataArray['text'][$key];
+                // Check if it is new block or diffirent par_num
+                $isNewBlock = !array_key_exists($textBlockNumber, $textBlocks) ||
+                    ($textBlocks[$textBlockNumber]['previousBlockNum'] != $previousBlockNum || $textBlocks[$textBlockNumber]['previousParNum'] != $previousParNum);
 
-                    // Block borders
-                    $textBlocks[$previousBlockNum]['leftStart'] = $dataArray['left'][$key];
-                    $textBlocks[$previousBlockNum]['topStart'] = $dataArray['top'][$key];
-                    $textBlocks[$previousBlockNum]['leftEnd'] = $dataArray['left'][$key] + $dataArray['width'][$key];
+                if ($isNewBlock) {
+                    $textBlockNumber++;
+
+                    $textBlocks[$textBlockNumber] = [
+                        'previousBlockNum' => $previousBlockNum,
+                        'previousParNum' => $previousParNum,
+                        'text' => $dataArray['text'][$key],
+                        'leftStart' => $dataArray['left'][$key],
+                        'topStart' => $dataArray['top'][$key],
+                        'leftEnd' => $dataArray['left'][$key] + $dataArray['width'][$key],
+                    ];
+                } else {
+                    $textBlocks[$textBlockNumber]['text'] .= ' ' . $dataArray['text'][$key];
                 }
 
-                // Set box end from left
-                if (array_key_exists('leftEnd', $textBlocks[$previousBlockNum])) {
-                    // If current leftEnd is smaller then set it
-                    if ($textBlocks[$previousBlockNum]['leftEnd'] < $dataArray['left'][$key] + $dataArray['width'][$key]) {
-                        $textBlocks[$previousBlockNum]['leftEnd'] = $dataArray['left'][$key] + $dataArray['width'][$key];
-                    }
+                // If current leftEnd is smaller then set it
+                if ($textBlocks[$textBlockNumber]['leftEnd'] < $dataArray['left'][$key] + $dataArray['width'][$key]) {
+                    $textBlocks[$textBlockNumber]['leftEnd'] = $dataArray['left'][$key] + $dataArray['width'][$key];
                 }
 
                 //Set box end from top
-                $textBlocks[$previousBlockNum]['topEnd'] = $dataArray['top'][$key] + $dataArray['height'][$key];
-                $textBlocks[$previousBlockNum]['lineNum'] = $dataArray['line_num'][$key];
+                $textBlocks[$textBlockNumber]['topEnd'] = $dataArray['top'][$key] + $dataArray['height'][$key];
+                $textBlocks[$textBlockNumber]['lineNum'] = $dataArray['line_num'][$key];
 
-                // Calculate font size, if there any text
-                if ($textBlocks[$previousBlockNum]['text']) {
-                    $textBlocks[$previousBlockNum]['fontSize'] = TesseractController::calculateFontSize($textBlocks[$previousBlockNum]);
-                }
+                // Calculate font size
+                $textBlocks[$textBlockNumber]['fontSize'] = TesseractController::calculateFontSize($textBlocks[$textBlockNumber]);
             }
+
             // Set previous block value as current block
             $previousBlockNum = $value;
+            // Set previous par_num value as current par_num
+            $previousParNum = $dataArray['par_num'][$key];
         }
 
         $textBlocks = TesseractController::cleanUpTextBlocks($textBlocks);

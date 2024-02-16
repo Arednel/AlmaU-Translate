@@ -40,8 +40,8 @@
     <br>
     <a href="/">← На главную</a>
 
-    <p>version 0.7.4.3 / 2024.02.15</p>
-    <p>Commentary</p>
+    <p>version 0.7.5 / 2024.02.16</p>
+    <p>Tesseract OCR optimizations</p>
 </body>
 
 </html>
