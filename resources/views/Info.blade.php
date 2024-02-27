@@ -40,8 +40,8 @@
     <br>
     <a href="/">← На главную</a>
 
-    <p>version 0.7.6 / 2024.02.27</p>
-    <p>Whisper text recognition</p>
+    <p>version 0.7.6.1 / 2024.02.27</p>
+    <p>Speech translate</p>
 </body>
 
 </html>

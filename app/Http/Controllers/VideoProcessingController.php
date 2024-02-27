@@ -561,12 +561,14 @@ class VideoProcessingController extends Controller
         $this->extractAudio($originalVideoPath, $extractedAudioPath, $audioFormat);
 
         // If user wants to translate speech
+        //TO DO get output from user, does he want to translate speech in video
         if (true) {
             // Get speech data from audio
             $whisperOutputDir = storage_path('app/audio/processing/' . $videoID);
             $speechData = $this->whisperRecognizeSpeech($extractedAudioPath, $audioFormat, $whisperOutputDir);
 
-            //TO DO translate speech data
+            // Translate speech data
+            $translatedText = $this->translateText($speechData['text']);
 
             //TO DO generate speech
 
