@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use TCG\Voyager\Facades\Voyager;
 
 use App\Http\Controllers\VideoController;
+use App\Http\Controllers\VideoProcessingController;
 
 /*
 |--------------------------------------------------------------------------

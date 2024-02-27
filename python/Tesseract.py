@@ -1,7 +1,6 @@
-import os
 import sys
-import cv2
 import json
+import cv2
 import pytesseract
 from pytesseract import Output
 

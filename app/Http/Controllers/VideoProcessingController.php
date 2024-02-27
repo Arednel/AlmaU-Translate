@@ -16,6 +16,7 @@ use ProtoneMedia\LaravelFFMpeg\FFMpeg\FFProbe;
 use ProtoneMedia\LaravelFFMpeg\Support\FFMpeg;
 
 use App\Models\Video;
+use Symfony\Component\Process\Exception\ProcessFailedException;
 
 class VideoProcessingController extends Controller
 {
@@ -556,14 +557,32 @@ class VideoProcessingController extends Controller
 
         $audioFormat = $this->recognizeAudioFormat($originalVideoPath, $videoID, $videoNameWithExtension);
 
-        $extractedAudioPath = storage_path('app/audio/processing/' . $videoID . '/' . $videoName . '_audio.' . $audioFormat);
+        $extractedAudioPath = storage_path('app/audio/processing/' . $videoID . '/' . $videoName);
         $this->extractAudio($originalVideoPath, $extractedAudioPath, $audioFormat);
 
+        // If user wants to translate speech
+        if (true) {
+            // Get speech data from audio
+            $whisperOutputDir = storage_path('app/audio/processing/' . $videoID);
+            $speechData = $this->whisperRecognizeSpeech($extractedAudioPath, $audioFormat, $whisperOutputDir);
+
+            //TO DO translate speech data
+
+            //TO DO generate speech
+
+            //TO DO Replace below with translated audio path
+            $fixedOrTranslatedAudio = "$extractedAudioPath.$audioFormat";
+        } else {
+            // Apply default audio fix
+            $fixedOrTranslatedAudio = "$extractedAudioPath.$audioFormat";
+        }
+
+        //Replace audio
         $ffmpegCommand = [
             env('FFMPEG_BINARIES'),
             '-y', // -y option for overwrite
             '-i', $translatedVideoPath,
-            '-i', $extractedAudioPath,
+            '-i', $fixedOrTranslatedAudio,
             '-c:v', 'copy',
             '-map', '0:v:0',
             '-map', '1:a:0',
@@ -600,10 +619,29 @@ class VideoProcessingController extends Controller
             '-vn', '-acodec',
             'copy',
             '-f', $audioFormat,
-            $extractedAudioPath,
+            "$extractedAudioPath.$audioFormat",
         ];
 
         $this->runProcess($ffmpegCommand);
+    }
+
+    private function whisperRecognizeSpeech($extractedAudioPath, $audioFormat, $whisperOutputDir)
+    {
+        $whisperCommand = [
+            'whisper',
+            "$extractedAudioPath.$audioFormat",
+            '--language', 'Russian',
+            '--model', 'base',
+            '--output_dir', $whisperOutputDir,
+            '--output_format', 'json'
+        ];
+
+        $this->runProcess($whisperCommand);
+
+        $json = File::get("$extractedAudioPath.json");
+        $speechData = json_decode($json, true);
+
+        return $speechData;
     }
 
     private function cleanUp($videoID, $videoName, $imageNumber)

@@ -3,6 +3,11 @@
 2. Python modules globally:
     1. pytesseract
     2. cv2 (opencv-python)
+    3. [whisper (openai-whisper)](https://github.com/openai/whisper)
+    4. with gpu:
+        1. torch
+        2. torchvision
+        3. torchaudio
 3. FFmpeg in path / globally
 4. Tesseract OCR in path
 

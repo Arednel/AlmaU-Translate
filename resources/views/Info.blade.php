@@ -40,8 +40,8 @@
     <br>
     <a href="/">← На главную</a>
 
-    <p>version 0.7.5 / 2024.02.16</p>
-    <p>Tesseract OCR optimizations</p>
+    <p>version 0.7.6 / 2024.02.27</p>
+    <p>Whisper text recognition</p>
 </body>
 
 </html>
