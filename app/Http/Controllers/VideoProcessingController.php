@@ -69,25 +69,20 @@ class VideoProcessingController extends Controller
             // Translate video part and return text blocks
             $previousTextBlocks = $this->translateVideoPart($videoID, $videoName, $videoNameWithExtension, $imageNumber, $previousTextBlocks, $margin);
 
-            $video->current_progress = intval((($imageNumber + 1) / ($videoDuration - 2)) * 90) + 5;
+            $video->current_progress = intval((($imageNumber + 1) / ($videoDuration - 2)) * 80) + 5;
             $video->save();
-
-            //TO DO Remove, only for debugging      
-            // if ($imageNumber >= 0) {
-            //     break;
-            // }
         }
 
         $this->mergeVideoParts($videoID, $videoName, $videoFileExtension);
 
-        $video->current_progress = 95;
+        $video->current_progress = 85;
         $video->save();
 
         // Place original audio track
         $this->fixAudio($videoID, $videoName, $videoFileExtension);
 
         // Cleanup
-        $this->cleanUp($videoID, $videoName, $imageNumber);
+        $this->cleanUp($videoID);
 
         // Set video status to completed
         $video = Video::find($videoID); //Fix of "Attempt to assign property "is_processing" on null"
@@ -567,16 +562,15 @@ class VideoProcessingController extends Controller
             $whisperOutputDir = storage_path('app/audio/processing/' . $videoID);
             $speechData = $this->whisperRecognizeSpeech($extractedAudioPath, $audioFormat, $whisperOutputDir);
 
-            // Translate speech data
-            $translatedText = $this->translateText($speechData['text']);
+            $translatedTextPath = $this->translateAndSaveSpeech($speechData, $extractedAudioPath);
 
-            //TO DO generate speech
+            $this->coquiAISpeechGenerate($translatedTextPath, $extractedAudioPath);
 
             //TO DO Replace below with translated audio path
-            $fixedOrTranslatedAudio = "$extractedAudioPath.$audioFormat";
+            $replactAudioWith = $extractedAudioPath . '_generated_speech.wav';
         } else {
             // Apply default audio fix
-            $fixedOrTranslatedAudio = "$extractedAudioPath.$audioFormat";
+            $replactAudioWith = "$extractedAudioPath.$audioFormat";
         }
 
         //Replace audio
@@ -584,7 +578,7 @@ class VideoProcessingController extends Controller
             env('FFMPEG_BINARIES'),
             '-y', // -y option for overwrite
             '-i', $translatedVideoPath,
-            '-i', $fixedOrTranslatedAudio,
+            '-i', $replactAudioWith,
             '-c:v', 'copy',
             '-map', '0:v:0',
             '-map', '1:a:0',
@@ -646,7 +640,37 @@ class VideoProcessingController extends Controller
         return $speechData;
     }
 
-    private function cleanUp($videoID, $videoName, $imageNumber)
+    private function translateAndSaveSpeech($speechData, $extractedAudioPath)
+    {
+        // Add text to log later
+        $this->logText .= "Speech translation \n";
+
+        $translatedText = $this->translateText($speechData['text']);
+        // Convert data to JSON format
+        $translatedTextJson = json_encode(['text' => $translatedText]);
+        // Specify the file path
+        $translatedTextPath = $extractedAudioPath . '_translated_speech.json';
+        // Save data to the file
+        File::put($translatedTextPath, $translatedTextJson);
+
+
+
+        return $translatedTextPath;
+    }
+
+    private function coquiAISpeechGenerate($translatedTextPath, $audioOutputPath)
+    {
+        $path = base_path('python/Coqui_ai.py');
+        $process = new Process(['py', $path,  $translatedTextPath, $audioOutputPath]);
+        $process->run();
+
+        // Show any errors
+        if (!$process->isSuccessful()) {
+            throw new ProcessFailedException($process);
+        }
+    }
+
+    private function cleanUp($videoID)
     {
         // Folders to cleanup
         $folders = [

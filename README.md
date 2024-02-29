@@ -3,7 +3,9 @@
 2. Python modules:
     1. pytesseract
     2. PIL (pillow)
-    3. with gpu:
+    3. [whisper (openai-whisper)](https://github.com/openai/whisper)
+    4. [coqui-ai/tts](https://github.com/coqui-ai/TTS) globally
+    5. with gpu:
         1. torch
         2. torchvision
         3. torchaudio
@@ -20,10 +22,11 @@
 5. php artisan db:seed --class=BreadPermissionsSeeder
 6. php artisan voyager:admin admin@admin.com --create
 
-### python modules/packages unstallation process
+### python modules/packages installation process
 #### from project folder
 
 1. pip install --target python/modules pytesseract pillow openai-whisper
+2. pip install tts==0.21.0
 
 ## Using
 
