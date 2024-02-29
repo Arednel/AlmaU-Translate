@@ -40,8 +40,8 @@
     <br>
     <a href="/">← На главную</a>
 
-    <p>version 0.7.6.1 / 2024.02.27</p>
-    <p>Speech translate</p>
+    <p>version 0.7.7 / 2024.02.29</p>
+    <p>Python change to local</p>
 </body>
 
 </html>

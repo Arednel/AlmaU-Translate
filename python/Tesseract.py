@@ -1,7 +1,8 @@
 import sys
 import json
-import cv2
-import pytesseract
+from modules import PIL
+from PIL import Image
+from modules import pytesseract
 from pytesseract import Output
 
 # Get video name
@@ -10,7 +11,7 @@ videoName = sys.argv[2]
 imageNumber = sys.argv[3]
 storageDir = sys.argv[4]
 
-img = cv2.imread(storageDir + "images\\processing\\" + videoID + "\\" + videoName + "_" + imageNumber + ".png")
+img = Image.open(storageDir + "images\\processing\\" + videoID + "\\" + videoName + "_" + imageNumber + ".png")
 
 # Get output from tesseract as dictionary
 dictionary = pytesseract.image_to_data(img, lang="rus+eng", output_type=Output.DICT)

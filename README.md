@@ -1,17 +1,17 @@
 ## Requirements
-1. Python globally
-2. Python modules globally:
+1. Python in path / globally
+2. Python modules:
     1. pytesseract
-    2. cv2 (opencv-python)
-    3. [whisper (openai-whisper)](https://github.com/openai/whisper)
-    4. with gpu:
+    2. PIL (pillow)
+    3. with gpu:
         1. torch
         2. torchvision
         3. torchaudio
-3. FFmpeg in path / globally
-4. Tesseract OCR in path
+3. [FFmpeg](https://github.com/FFmpeg/FFmpeg) in path / globally
+4. [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) in path
 
 ## Installation process
+#### from project folder
 
 1. composer install
 2. php artisan key:generate
@@ -19,6 +19,11 @@
 4. php artisan db:seed --class=VideosBreadSeeder
 5. php artisan db:seed --class=BreadPermissionsSeeder
 6. php artisan voyager:admin admin@admin.com --create
+
+### python modules/packages unstallation process
+#### from project folder
+
+1. pip install --target python/modules pytesseract pillow openai-whisper
 
 ## Using
 
