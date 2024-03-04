@@ -40,8 +40,8 @@
     <br>
     <a href="/">← На главную</a>
 
-    <p>version 0.7.8 / 2024.02.29</p>
-    <p>Speech translation</p>
+    <p>version 0.7.9 / 2024.03.04</p>
+    <p>User choice on audio translation</p>
 </body>
 
 </html>

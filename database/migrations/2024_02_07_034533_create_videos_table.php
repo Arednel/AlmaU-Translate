@@ -17,6 +17,7 @@ return new class extends Migration
             $table->tinyInteger('current_progress')->default(0); //Current progress, out of 100
             $table->tinyInteger('is_processing')->default(0); // If video is being processed right now
             $table->tinyInteger('is_translated')->default(0); //If video is already translated
+            $table->tinyInteger('translate_audio')->default(0); //If video is already translated
             $table->timestamps();
         });
     }

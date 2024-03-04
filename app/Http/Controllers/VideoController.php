@@ -53,6 +53,9 @@ class VideoController extends VoyagerBaseController
             $file->storeAs($filePath, $fileName);
         }
 
+        // Set if user checked, then audio is also will be translated
+        $video->translate_audio = $request->has('translate_audio');
+
         $video->name = $fileName;
         $video->save();
 

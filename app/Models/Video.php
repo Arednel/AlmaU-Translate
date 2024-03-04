@@ -13,5 +13,6 @@ class Video extends Model
         'current_progress',
         'is_processing',
         'is_translated',
+        'translate_audio',
     ];
 }

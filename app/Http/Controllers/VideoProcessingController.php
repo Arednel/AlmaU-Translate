@@ -78,8 +78,9 @@ class VideoProcessingController extends Controller
         $video->current_progress = 85;
         $video->save();
 
-        // Place original audio track
-        $this->fixAudio($videoID, $videoName, $videoFileExtension);
+        $translate_audio = $video->translate_audio;
+        // Place original audio track or translate
+        $this->fixAudio($videoID, $videoName, $videoFileExtension, $translate_audio);
 
         // Cleanup
         $this->cleanUp($videoID);
@@ -543,7 +544,7 @@ class VideoProcessingController extends Controller
         $this->runProcess($ffmpegCommand);
     }
 
-    private function fixAudio($videoID, $videoName, $videoFileExtension)
+    private function fixAudio($videoID, $videoName, $videoFileExtension, $translate_audio)
     {
         $videoNameWithExtension = "$videoName.$videoFileExtension";
         $originalVideoPath = storage_path("/app/videos/new/$videoID/$videoNameWithExtension");
@@ -557,7 +558,7 @@ class VideoProcessingController extends Controller
 
         // If user wants to translate speech
         //TO DO get output from user, does he want to translate speech in video
-        if (true) {
+        if ($translate_audio) {
             // Get speech data from audio
             $whisperOutputDir = storage_path('app/audio/processing/' . $videoID);
             $speechData = $this->whisperRecognizeSpeech($extractedAudioPath, $audioFormat, $whisperOutputDir);
