@@ -21,7 +21,8 @@ Artisan::command('inspire', function () {
 Artisan::command('logs:clear', function () {
     $logs = [
         'laravel',
-        'translation'
+        'translation',
+        'video_download',
     ];
 
     // Clean every log

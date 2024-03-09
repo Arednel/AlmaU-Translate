@@ -15,7 +15,12 @@ class TesseractController extends Controller
 
         // Run pytesseract
         $path = base_path('python/Tesseract.py');
-        $process = new Process(['py', $path, $videoID, $videoName, $imageNumber, $storageDir]);
+        $modulesPath = base_path('python/modules');
+
+        $process = new Process(['py', $path, $modulesPath, $videoID, $videoName, $imageNumber, $storageDir]);
+
+        // Set infinite timeout
+        $process->setTimeout(0);
         $process->run();
 
         // Show any errors

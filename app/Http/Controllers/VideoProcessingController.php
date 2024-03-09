@@ -11,12 +11,12 @@ use Intervention\Image\Facades\Image;
 use Illuminate\Support\Facades\Log;
 
 use Symfony\Component\Process\Process;
+use Symfony\Component\Process\Exception\ProcessFailedException;
 
 use ProtoneMedia\LaravelFFMpeg\FFMpeg\FFProbe;
 use ProtoneMedia\LaravelFFMpeg\Support\FFMpeg;
 
 use App\Models\Video;
-use Symfony\Component\Process\Exception\ProcessFailedException;
 
 class VideoProcessingController extends Controller
 {
@@ -624,16 +624,19 @@ class VideoProcessingController extends Controller
 
     private function whisperRecognizeSpeech($extractedAudioPath, $audioFormat, $whisperOutputDir)
     {
-        $whisperCommand = [
-            'whisper',
-            "$extractedAudioPath.$audioFormat",
-            '--language', 'Russian',
-            '--model', 'base',
-            '--output_dir', $whisperOutputDir,
-            '--output_format', 'json'
-        ];
+        $path = base_path('python/Whisper.py');
+        $modulesPath = base_path('python/modules');
 
-        $this->runProcess($whisperCommand);
+        $process = new Process(['py', $path, $modulesPath, $extractedAudioPath, $audioFormat, $whisperOutputDir]);
+
+        // Set infinite timeout
+        $process->setTimeout(0);
+        $process->run();
+
+        // Show any errors
+        if (!$process->isSuccessful()) {
+            throw new ProcessFailedException($process);
+        }
 
         $json = File::get("$extractedAudioPath.json");
         $speechData = json_decode($json, true);
@@ -654,15 +657,18 @@ class VideoProcessingController extends Controller
         // Save data to the file
         File::put($translatedTextPath, $translatedTextJson);
 
-
-
         return $translatedTextPath;
     }
 
     private function coquiAISpeechGenerate($translatedTextPath, $audioOutputPath)
     {
         $path = base_path('python/Coqui_ai.py');
-        $process = new Process(['py', $path,  $translatedTextPath, $audioOutputPath]);
+        $modulesPath = base_path('python/modules');
+
+        $process = new Process(['py', $path, $modulesPath, $translatedTextPath, $audioOutputPath]);
+
+        // Set infinite timeout
+        $process->setTimeout(0);
         $process->run();
 
         // Show any errors

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Video;
 
 use App\Jobs\TranslateVideo;
+use App\Jobs\DownloadVideo;
 
 use Illuminate\Http\Request;
 
@@ -31,36 +32,51 @@ class VideoController extends VoyagerBaseController
             return redirect()->back()->withErrors('Укажите ссылку на видео либо загружите видеофайл');
         }
 
+        // TO DO Check if it is a single video or a playlist
         // If video_url is present, then 
         if ($request->has('video_url') && $request->video_url != null) {
+            $video = Video::create();
+            $videoID = $video->id;
+
+            // Set if user checked, then audio is also will be translated
+            $video->translate_audio = $request->has('translate_audio');
+
+            $video->save();
+
+            // Download video, then dispath translate job
+            $videoURL = $request->video_url;
+
+            // Temporarily set video name as video URL
+            $video->name = $videoURL;
+            $video->save();
+
             // download video file via yt-dlp
-            // TO DO do logic
-            return redirect()->back()->withErrors('Загрузите файл, перевод по ссылке в разработке');
+            DownloadVideo::dispatch($videoID, $videoURL);
         } else {
             // save video file
             $file = $request->file('video_file');
 
             // Generate a unique file name
-            $fileName = $file->getClientOriginalName();
+            $videoName = $file->getClientOriginalName();
 
             $video = Video::create();
             $videoID = $video->id;
 
             // Specify the directory where you want to save the file
-            $filePath = "videos/new/$videoID";
+            $videoPath = "videos/new/$videoID";
 
             // Save the uploaded file to the specified directory
-            $file->storeAs($filePath, $fileName);
+            $file->storeAs($videoPath, $videoName);
+
+            // Set if user checked, then audio is also will be translated
+            $video->translate_audio = $request->has('translate_audio');
+
+            $video->name = $videoName;
+            $video->save();
+
+            // Create translate job
+            TranslateVideo::dispatch($videoID, $videoName);
         }
-
-        // Set if user checked, then audio is also will be translated
-        $video->translate_audio = $request->has('translate_audio');
-
-        $video->name = $fileName;
-        $video->save();
-
-        // Create translate job
-        TranslateVideo::dispatch($videoID, $fileName);
 
         return redirect('admin/videos');
     }

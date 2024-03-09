@@ -10,17 +10,20 @@ use Illuminate\Queue\SerializesModels;
 
 use DateTime;
 
+use Symfony\Component\Process\Process;
+use Symfony\Component\Process\Exception\ProcessFailedException;
+
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 
 use App\Models\Video;
 
-class TranslateVideo implements ShouldQueue
+class DownloadVideo implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected $videoID;
-    protected $videoNameWithExtension;
+    protected $videoURL;
 
     /**
      * The number of times the job may be attempted.
@@ -35,10 +38,10 @@ class TranslateVideo implements ShouldQueue
     /**
      * Create a new job instance.
      */
-    public function __construct($videoID, $videoNameWithExtension)
+    public function __construct($videoID, $videoURL)
     {
         $this->videoID = $videoID;
-        $this->videoNameWithExtension = $videoNameWithExtension;
+        $this->videoURL = $videoURL;
     }
 
     /**
@@ -50,7 +53,14 @@ class TranslateVideo implements ShouldQueue
 
         // Check if video is still needed processing (or deleted by user)
         if ($video) {
-            app()->call('App\Http\Controllers\VideoProcessingController@processVideo', ['videoID' => $this->videoID, 'videoNameWithExtension' => $this->videoNameWithExtension]);
+            $this->downloadVideo($this->videoID, $this->videoURL);
+
+            $videoName = $this->getVideoName($this->videoID);
+
+            $video = Video::find($this->videoID);
+            $video->name = $videoName;
+            $video->save();
+            TranslateVideo::dispatch($this->videoID, $videoName);
         } else {
             // Log that video is deleted
             Log::channel('translation')->info(
@@ -67,6 +77,40 @@ class TranslateVideo implements ShouldQueue
     public function retryUntil(): DateTime
     {
         return now()->addMinutes(600);
+    }
+
+    private function downloadVideo($videoID, $videoURL)
+    {
+        //TODO Check if it is a single video or a playlist
+        if (true) {
+            $storageDir = storage_path();
+
+            // Run yt-dlp download
+            $path = base_path('python/VideoDownload.py');
+            $modulesPath = base_path('python\modules');
+
+            $process = new Process(['py', $path, $modulesPath, $videoID, $videoURL, $storageDir]);
+
+            // Set infinite timeout
+            $process->setTimeout(0);
+            $process->run();
+
+            // Show any errors
+            if (!$process->isSuccessful()) {
+                throw new ProcessFailedException($process);
+            }
+        } else {
+        }
+    }
+
+    private function getVideoName($videoID)
+    {
+        // Get video file name (should be only one video file)
+        $videoPath = storage_path("app/videos/new/$videoID");
+        $files = File::files($videoPath);
+        $videoName = $files[0]->getFilename();
+
+        return $videoName;
     }
 
     private function removeFolders()
