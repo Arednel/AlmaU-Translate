@@ -40,8 +40,8 @@
     <br>
     <a href="/">← На главную</a>
 
-    <p>version 0.8.0 / 2024.03.09</p>
-    <p>Video web download and other fixes</p>
+    <p>version 0.8.0.1 / 2024.03.12</p>
+    <p>Video download fix and style</p>
 </body>
 
 </html>

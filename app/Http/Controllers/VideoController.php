@@ -32,26 +32,35 @@ class VideoController extends VoyagerBaseController
             return redirect()->back()->withErrors('Укажите ссылку на видео либо загружите видеофайл');
         }
 
-        // TO DO Check if it is a single video or a playlist
         // If video_url is present, then 
         if ($request->has('video_url') && $request->video_url != null) {
-            $video = Video::create();
-            $videoID = $video->id;
+            // If this link is link to a playlist
+            if (
+                str_contains($request->video_url, "playlist?list=")
+                &&
+                !str_contains($request->video_url, "watch?v=")
+            ) {
+                dd("The URL contains 'playlist?list='");
+            } else {
+                dd("The URL not contains 'playlist?list='");
+                $video = Video::create();
+                $videoID = $video->id;
 
-            // Set if user checked, then audio is also will be translated
-            $video->translate_audio = $request->has('translate_audio');
+                // Set if user checked, then audio is also will be translated
+                $video->translate_audio = $request->has('translate_audio');
 
-            $video->save();
+                $video->save();
 
-            // Download video, then dispath translate job
-            $videoURL = $request->video_url;
+                // Download video, then dispath translate job
+                $videoURL = $request->video_url;
 
-            // Temporarily set video name as video URL
-            $video->name = $videoURL;
-            $video->save();
+                // Temporarily set video name as video URL
+                $video->name = $videoURL;
+                $video->save();
 
-            // download video file via yt-dlp
-            DownloadVideo::dispatch($videoID, $videoURL);
+                // download video file via yt-dlp
+                DownloadVideo::dispatch($videoID, $videoURL);
+            }
         } else {
             // save video file
             $file = $request->file('video_file');

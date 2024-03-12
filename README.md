@@ -1,3 +1,9 @@
+<h2 align="center">Site for lectures translation</h2>
+
+<p align="center">
+python: <a href="https://github.com/psf/black"> <img alt="Code style: black" src="https://img.shields.io/badge/code%20style-black-000000.svg"></a>
+</p>
+
 ## Requirements
 1. [Python 3.11.7](https://www.python.org/downloads/release/python-3117) (tested on this version) and [pip](https://pypi.org/project/pip) (for easier installation process) in path / globally 
 2. Python modules:
