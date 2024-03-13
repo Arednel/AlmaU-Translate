@@ -23,6 +23,7 @@ Artisan::command('logs:clear', function () {
         'laravel',
         'translation',
         'video_download',
+        'playlist_info_extract',
     ];
 
     // Clean every log

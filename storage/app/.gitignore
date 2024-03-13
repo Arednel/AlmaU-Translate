@@ -1,3 +1,8 @@
 *
 !public/
+!audio/
+!images/
+!output/
+!playlists/
+!videos/
 !.gitignore

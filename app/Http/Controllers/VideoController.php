@@ -6,12 +6,16 @@ use App\Models\Video;
 
 use App\Jobs\TranslateVideo;
 use App\Jobs\DownloadVideo;
+use App\Jobs\GetPlaylistURLs;
 
 use Illuminate\Http\Request;
 
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
+
+use Symfony\Component\Process\Process;
+use Symfony\Component\Process\Exception\ProcessFailedException;
 
 use TCG\Voyager\Http\Controllers\VoyagerBaseController;
 
@@ -34,32 +38,18 @@ class VideoController extends VoyagerBaseController
 
         // If video_url is present, then 
         if ($request->has('video_url') && $request->video_url != null) {
+            $translateAudio = $request->has('translate_audio');
             // If this link is link to a playlist
             if (
                 str_contains($request->video_url, "playlist?list=")
                 &&
                 !str_contains($request->video_url, "watch?v=")
             ) {
-                dd("The URL contains 'playlist?list='");
+                // Dispath job to get all URLs from playlist and then download and translate them
+                GetPlaylistURLs::dispatch($translateAudio, $request->video_url);
             } else {
-                dd("The URL not contains 'playlist?list='");
-                $video = Video::create();
-                $videoID = $video->id;
-
-                // Set if user checked, then audio is also will be translated
-                $video->translate_audio = $request->has('translate_audio');
-
-                $video->save();
-
-                // Download video, then dispath translate job
-                $videoURL = $request->video_url;
-
-                // Temporarily set video name as video URL
-                $video->name = $videoURL;
-                $video->save();
-
-                // download video file via yt-dlp
-                DownloadVideo::dispatch($videoID, $videoURL);
+                // Download and translate video
+                $this->downloadVideo($translateAudio, $request->video_url);
             }
         } else {
             // save video file
@@ -88,6 +78,24 @@ class VideoController extends VoyagerBaseController
         }
 
         return redirect('admin/videos');
+    }
+
+    public static function downloadVideo($translateAudio, $videoURL)
+    {
+        $video = Video::create();
+        $videoID = $video->id;
+
+        // Set if user checked, then audio is also will be translated
+        $video->translate_audio = $translateAudio;
+
+        $video->save();
+
+        // Temporarily set video name as video URL
+        $video->name = $videoURL;
+        $video->save();
+
+        // download video file via yt-dlp
+        DownloadVideo::dispatch($videoID, $videoURL);
     }
 
     public function destroy(Request $request, $id)
